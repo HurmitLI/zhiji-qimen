@@ -22,13 +22,19 @@ function textFromResponse(data:{output_text?:string;output?:Array<{content?:Arra
   throw new Error('模型没有返回可读取内容');
 }
 
-async function createResponse(input:unknown,instructions:string,format:unknown,maxOutputTokens:number){
+async function createResponse(input:unknown,instructions:string,format:unknown,maxOutputTokens:number,fallbackField?:string){
   const key=process.env.DEEPSEEK_API_KEY;
   if(!key)throw new Error('DEEPSEEK_API_KEY_NOT_CONFIGURED');
   const response=await fetch(DEEPSEEK_URL,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,instructions,input:JSON.stringify(input),text:{format},reasoning:{effort:'none'},temperature:.35,max_output_tokens:maxOutputTokens})});
   const data=await response.json() as {error?:{message?:string};output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>};
   if(!response.ok)throw new Error(data.error?.message||`DeepSeek请求失败：${response.status}`);
-  return JSON.parse(textFromResponse(data)) as Record<string,unknown>;
+  const text=textFromResponse(data).trim();
+  try{return JSON.parse(text) as Record<string,unknown>}catch{
+    const start=text.indexOf('{');const end=text.lastIndexOf('}');
+    if(start>=0&&end>start)try{return JSON.parse(text.slice(start,end+1)) as Record<string,unknown>}catch{}
+    if(fallbackField&&text)return {[fallbackField]:text};
+    throw new Error(`模型返回的结构无法解析：${text.slice(0,80)}`);
+  }
 }
 
 function validBody(body:unknown):body is AiRequest{
@@ -53,7 +59,7 @@ export async function POST(request:Request){
     }
     const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-8).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
     if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请输入本局追问'},{status:400});
-    const result=await createResponse({chart:body.chart,reading:body.reading,messages,question:body.question.slice(0,600)},`${baseInstructions}\n任务：回答用户围绕“同一局”的追问。先给直接回答，再说明盘面依据，最后给一个现实核验动作。如果问题已经变成新的时间、新的主题或要求重新预测，提示用户重新起局。`,followupSchema,1000);
+    const result=await createResponse({chart:body.chart,reading:body.reading,messages,question:body.question.slice(0,600)},`${baseInstructions}\n任务：回答用户围绕“同一局”的追问。先给直接回答，再说明盘面依据，最后给一个现实核验动作。如果问题已经变成新的时间、新的主题或要求重新预测，提示用户重新起局。只输出符合JSON Schema的JSON对象。`,followupSchema,1000,'answer');
     return Response.json({mode:'followup',...result});
   }catch(error){
     const message=error instanceof Error?error.message:'AI服务暂时不可用';
