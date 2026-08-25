@@ -57,7 +57,7 @@ export type Palace = {
 };
 
 export type QimenChart = {
-  input:{questionType:string;question:string;city:string;time:string;timezone:string};
+  input:{questionType:string;question:string;city:string;time:string;timezone:string;focus?:string;context?:string};
   calendar:{solar:string;lunar:string;year:string;month:string;day:string;time:string;activeJie:string;nextJie:string;nextJieAt:string};
   dunType:string; yuan:string; juNumber:number; xunshou:string; hiddenYi:string; timeStemVisible:string;
   kongwang:string[]; kongwangPalaces:number[]; dayKongwang:string[]; dayKongwangPalaces:number[];
@@ -76,8 +76,8 @@ function relation(a?:string,b?:string){
 }
 function formatSolar(s:{toYmdHms():string}){ return s.toYmdHms().slice(0,16); }
 
-export function buildQimenChart(params:{date:Date;questionType:string;question:string;city:string}):QimenChart{
-  const {date,questionType,question,city}=params;
+export function buildQimenChart(params:{date:Date;questionType:string;question:string;city:string;focus?:string;context?:string}):QimenChart{
+  const {date,questionType,question,city,focus,context}=params;
   const solar=Solar.fromYmdHms(date.getFullYear(),date.getMonth()+1,date.getDate(),date.getHours(),date.getMinutes(),0);
   const lunar=solar.getLunar();
   const prevJie=lunar.getPrevJie(false), nextJie=lunar.getNextJie(false);
@@ -125,7 +125,7 @@ export function buildQimenChart(params:{date:Date;questionType:string;question:s
   const now=solar.getJulianDay(), prev=prevJie.getSolar().getJulianDay(), next=nextJie.getSolar().getJulianDay();
   if(Math.abs(now-prev)<=1||Math.abs(next-now)<=1) warnings.push('当前时间接近节气交界，跨越边界可能改变局式。');
   return {
-    input:{questionType,question,city,time:formatSolar(solar),timezone:'Asia/Shanghai'},
+    input:{questionType,question,city,time:formatSolar(solar),timezone:'Asia/Shanghai',focus,context},
     calendar:{solar:formatSolar(solar),lunar:`${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`,year:lunar.getYearInGanZhiExact(),month:lunar.getMonthInGanZhiExact(),day:dayGanzhi,time:lunar.getTimeInGanZhi(),activeJie,nextJie:nextJie.getName(),nextJieAt:formatSolar(nextJie.getSolar())},
     dunType,yuan,juNumber,xunshou:timeXun,hiddenYi,timeStemVisible:timeVisible,
     kongwang:timeKong,kongwangPalaces:[...new Set(timeKong.map(b=>BRANCH_TO_PALACE[b]))].sort(),
