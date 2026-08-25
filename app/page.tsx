@@ -239,32 +239,6 @@ function RitualVisual({
   stage: number;
   muted: boolean;
 }) {
-  const terms = [
-    "冬至",
-    "小寒",
-    "大寒",
-    "立春",
-    "雨水",
-    "惊蛰",
-    "春分",
-    "清明",
-    "谷雨",
-    "立夏",
-    "小满",
-    "芒种",
-    "夏至",
-    "小暑",
-    "大暑",
-    "立秋",
-    "处暑",
-    "白露",
-    "秋分",
-    "寒露",
-    "霜降",
-    "立冬",
-    "小雪",
-    "大雪",
-  ];
   const videoSrc = mediaForStage(stage, chart.zhishi.door);
   return (
     <div className={`ritual-universe phase-${stage}`}>
@@ -280,100 +254,6 @@ function RitualVisual({
         preload="auto"
       />
       <div className="ritual-media-shade" />
-      <div className="cosmos-dust" />
-      <div className="celestial-ring ring-a" />
-      <div className="celestial-ring ring-b" />
-      <div className="celestial-ring ring-c" />
-      <div
-        aria-hidden={stage !== 0}
-        className={`phase-object seal-object ${stage === 0 ? "shown" : ""}`}
-      >
-        <div className="question-orb">
-          <i />
-          <b>念</b>
-        </div>
-      </div>
-      <div
-        aria-hidden={stage !== 1}
-        className={`phase-object time-object ${stage === 1 ? "shown" : ""}`}
-      >
-        <div className="time-dial">
-          <b>{chart.calendar.solar.slice(11)}</b>
-          <span>{chart.calendar.solar.slice(0, 10)}</span>
-          <i>UTC+08</i>
-        </div>
-        <div className="axis axis-x" />
-        <div className="axis axis-y" />
-      </div>
-      <div
-        aria-hidden={stage !== 2}
-        className={`phase-object term-object ${stage === 2 ? "shown" : ""}`}
-      >
-        <div className="term-wheel">
-          {terms.map((term, i) => (
-            <span
-              key={term}
-              className={term === chart.calendar.activeJie ? "current" : ""}
-              style={{ "--a": `${i * 15}deg` } as React.CSSProperties}
-            >
-              {term}
-            </span>
-          ))}
-          <b>{chart.calendar.activeJie}</b>
-        </div>
-      </div>
-      <div
-        aria-hidden={stage !== 3}
-        className={`phase-object pillar-object ${stage === 3 ? "shown" : ""}`}
-      >
-        {[
-          ["年", chart.calendar.year],
-          ["月", chart.calendar.month],
-          ["日", chart.calendar.day],
-          ["时", chart.calendar.time],
-        ].map(([label, value], i) => (
-          <div key={label} style={{ "--i": i } as React.CSSProperties}>
-            <span>{label}</span>
-            <b>{value}</b>
-          </div>
-        ))}
-      </div>
-      <div
-        aria-hidden={stage !== 4}
-        className={`phase-object dun-object ${stage === 4 ? "shown" : ""}`}
-      >
-        <div className={`dun-disc ${chart.dunType === "阴遁" ? "yin" : ""}`}>
-          <i />
-          <b>{chart.dunType[0]}</b>
-          <span>{chart.dunType}</span>
-        </div>
-      </div>
-      <div
-        aria-hidden={stage !== 5}
-        className={`phase-object ju-object ${stage === 5 ? "shown" : ""}`}
-      >
-        <div className="ju-number">
-          {chart.juNumber}
-          <span>
-            {chart.dunType} · {chart.yuan}
-          </span>
-        </div>
-        <div className="ju-grid">
-          {GRID_ORDER.map((n) => (
-            <i key={n} className={n === chart.juNumber ? "origin" : ""}>
-              {n}
-            </i>
-          ))}
-        </div>
-      </div>
-      <div
-        aria-hidden={stage < 6}
-        className={`board-object ${stage >= 6 ? "shown" : ""}`}
-      >
-        <PalaceMatrix chart={chart} stage={stage} mode="ritual" />
-        <div className="focus-beam beam-a" />
-        <div className="focus-beam beam-b" />
-      </div>
       {stage === 11 && (
         <div className="door-reveal-caption">
           <small>DESTINY GATE REVEALED</small>
