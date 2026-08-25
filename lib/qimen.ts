@@ -62,7 +62,8 @@ export type QimenChart = {
   dunType:string; yuan:string; juNumber:number; xunshou:string; hiddenYi:string; timeStemVisible:string;
   kongwang:string[]; kongwangPalaces:number[]; dayKongwang:string[]; dayKongwangPalaces:number[];
   yima:{branch:string;palace:number}; zhifu:{star:string;palace:number}; zhishi:{door:string;palace:number};
-  dayStem:{stem:string;palace:number}; doorIndex:Record<string,number>; starIndex:Record<string,number>;
+  dayStem:{stem:string;palace:number}; timeStem:{stem:string;palace:number};
+  stemIndex:Record<string,number>; doorIndex:Record<string,number>; starIndex:Record<string,number>;
   palaces:Palace[]; warnings:string[];
 };
 
@@ -133,6 +134,8 @@ export function buildQimenChart(params:{date:Date;questionType:string;question:s
     yima:{branch:yimaBranch,palace:BRANCH_TO_PALACE[yimaBranch]},
     zhifu:{star:starMap[timePalace],palace:timePalace},zhishi:{door:doorMap[timePalace],palace:timePalace},
     dayStem:{stem:dayGan,palace:host(stemPalace(earthPlate,dayGan))},
+    timeStem:{stem:timeVisible,palace:timePalace},
+    stemIndex:Object.fromEntries(Object.entries(earthPlate).map(([palace,stem])=>[stem,host(Number(palace))])),
     doorIndex:Object.fromEntries(chartPalaces.filter(p=>p.door).map(p=>[p.door,p.palace])),
     starIndex:Object.fromEntries(chartPalaces.filter(p=>p.star&&!p.isCenter).map(p=>[p.star,p.palace])),
     palaces:chartPalaces,warnings,

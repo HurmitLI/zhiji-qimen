@@ -1,4 +1,6 @@
-import { intakeResponseStillAsking, type AiRequest, type IntakeResult } from '../../../lib/ai';
+import { intakeResponseStillAsking, type AiReading, type AiRequest, type IntakeResult } from '../../../lib/ai';
+import { buildQimenChart, type QimenChart } from '../../../lib/qimen';
+import { interpretChart } from '../../../lib/interpret';
 
 const DEEPSEEK_URL='https://api.deepseek.com/responses';
 const MODEL='deepseek-v4-flash';
@@ -16,6 +18,58 @@ const clarifySchema={type:'json_schema',name:'clarified_qimen_question',schema:{
 const intakeSchema={type:'json_schema',name:'qimen_intake_turn',schema:{type:'object',additionalProperties:false,properties:{ready:{type:'boolean'},assistantMessage:{type:'string',minLength:8,maxLength:260},questionType:{type:'string',enum:['人生方向','事业发展','财富趋势','感情关系','学业成长','迁移远行']},focus:{type:'string',enum:['看未来主线','找机会来源','识别阻力','决定下一步']},refinedQuestion:{type:'string',minLength:6,maxLength:120},contextSummary:{type:'string',maxLength:180},options:{type:'array',minItems:0,maxItems:4,items:{type:'string',minLength:2,maxLength:36}}},required:['ready','assistantMessage','questionType','focus','refinedQuestion','contextSummary','options']}};
 const readingSchema={type:'json_schema',name:'qimen_destiny_reading',schema:{type:'object',additionalProperties:false,properties:{omenTitle:{type:'string',minLength:2,maxLength:12},oracle:{type:'string',minLength:20,maxLength:100},overview:{type:'string',minLength:40,maxLength:220},chapters:{type:'array',minItems:6,maxItems:6,items:{type:'object',additionalProperties:false,properties:{label:{type:'string',enum:['当下主运','人生课题','适合方向','机会来源','主要阻力','转机信号']},title:{type:'string',minLength:2,maxLength:24},body:{type:'string',minLength:35,maxLength:180},evidence:{type:'string',minLength:4,maxLength:80}},required:['label','title','body','evidence']}},actions:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:18,maxLength:100}},followupPrompts:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:6,maxLength:50}}},required:['omenTitle','oracle','overview','chapters','actions','followupPrompts']}};
 const followupSchema={type:'json_schema',name:'qimen_followup_answer',schema:{type:'object',additionalProperties:false,properties:{answer:{type:'string',minLength:40,maxLength:500}},required:['answer']}};
+const rateBuckets=new Map<string,{count:number;resetAt:number}>();
+const RATE_WINDOW_MS=10*60*1000;
+const RATE_LIMIT=40;
+
+function rateLimited(request:Request){
+  const ip=request.headers.get('cf-connecting-ip')||request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown';
+  const now=Date.now();
+  const current=rateBuckets.get(ip);
+  if(!current||current.resetAt<=now){rateBuckets.set(ip,{count:1,resetAt:now+RATE_WINDOW_MS});return false;}
+  current.count+=1;
+  return current.count>RATE_LIMIT;
+}
+
+function canonicalChart(raw:unknown):QimenChart{
+  if(!raw||typeof raw!=='object'||!('input' in raw))throw new Error('INVALID_CHART_INPUT');
+  const input=(raw as {input?:Record<string,unknown>}).input;
+  const time=String(input?.time||'');
+  const match=time.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  if(!match)throw new Error('INVALID_CHART_INPUT');
+  const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]),Number(match[4]),Number(match[5]),0);
+  return buildQimenChart({
+    date,
+    questionType:String(input?.questionType||'开放问题').slice(0,20),
+    question:String(input?.question||'').slice(0,600),
+    city:String(input?.city||'未填写').slice(0,40),
+    focus:String(input?.focus||'').slice(0,40),
+    context:String(input?.context||'').slice(0,600),
+  });
+}
+
+function groundedReading(raw:Record<string,unknown>,fallback:ReturnType<typeof interpretChart>):AiReading{
+  const chapters=Array.isArray(raw.chapters)?raw.chapters:[];
+  const actions=Array.isArray(raw.actions)?raw.actions.filter((item):item is string=>typeof item==='string').slice(0,3):[];
+  const followupPrompts=Array.isArray(raw.followupPrompts)?raw.followupPrompts.filter((item):item is string=>typeof item==='string').slice(0,3):[];
+  const groundedChapters=fallback.fortuneChapters.map(base=>{
+    const candidate=chapters.find(item=>item&&typeof item==='object'&&(item as {label?:unknown}).label===base.label) as Record<string,unknown>|undefined;
+    return {
+      label:base.label,
+      title:typeof candidate?.title==='string'?candidate.title:base.title,
+      body:typeof candidate?.body==='string'?candidate.body:base.body,
+      evidence:base.evidence,
+    };
+  });
+  return {
+    omenTitle:fallback.omenTitle,
+    oracle:fallback.oracle,
+    overview:typeof raw.overview==='string'?raw.overview:fallback.summary,
+    chapters:groundedChapters,
+    actions:actions.length===3?actions:fallback.actions,
+    followupPrompts:followupPrompts.length===3?followupPrompts:['这局更适合继续还是转向？','我现在最大的阻力是什么？','未来七天先验证什么？'],
+  };
+}
 
 function textFromResponse(data:{output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>}){
   if(data.output_text)return data.output_text;
@@ -45,6 +99,7 @@ function validBody(body:unknown):body is AiRequest{
 
 export async function POST(request:Request){
   try{
+    if(rateLimited(request))return Response.json({error:'请求过于频繁，请稍后再试'},{status:429});
     const raw=await request.text();
     if(raw.length>60000)return Response.json({error:'请求内容过长'},{status:413});
     const body=JSON.parse(raw) as unknown;
@@ -87,16 +142,21 @@ export async function POST(request:Request){
       return Response.json({mode:'clarify',...result});
     }
     if(body.mode==='reading'){
-      const result=await createResponse({chart:body.chart,fallback:body.fallback},`${baseInstructions}\n任务：结合用户问题、现实背景和完整盘面，生成一份真正个性化的“一局命书”。六个章节必须按规定标签与顺序输出；evidence只能引用输入里确实存在的盘面信息。行动建议要低成本、可撤回、可验证。`,readingSchema,2600);
-      return Response.json({mode:'reading',reading:result});
+      const chart=canonicalChart(body.chart);
+      const fallback=interpretChart(chart);
+      const result=await createResponse({chart,fallback},`${baseInstructions}\n任务：结合用户问题、现实背景和完整盘面，生成一份真正个性化的“一局命书”。fallback中的mainSymbol是本题主用神，综合结论必须以它、日干主体宫和时干事情宫为核心；值使只代表时段环境，禁止把值使门直接写成整件事的最终吉凶。六个章节必须按规定标签与顺序输出。不要改变fallback的总体倾向。行动建议要低成本、可撤回、可验证。`,readingSchema,2600);
+      return Response.json({mode:'reading',reading:groundedReading(result,fallback)});
     }
     const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-8).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
     if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请输入本局追问'},{status:400});
-    const result=await createResponse({chart:body.chart,reading:body.reading,messages,question:body.question.slice(0,600)},`${baseInstructions}\n任务：回答用户围绕“同一局”的追问。先给直接回答，再说明盘面依据，最后给一个现实核验动作。如果问题已经变成新的时间、新的主题或要求重新预测，提示用户重新起局。只输出符合JSON Schema的JSON对象。`,followupSchema,1000,'answer');
+    const chart=canonicalChart(body.chart);
+    const fallback=interpretChart(chart);
+    const result=await createResponse({chart,fallback,reading:body.reading,messages,question:body.question.slice(0,600)},`${baseInstructions}\n任务：回答用户围绕“同一局”的追问。以fallback中的主用神、主体宫、事情宫为核心，值使只作为时段环境。先给直接回答，再说明盘面依据，最后给一个现实核验动作。如果问题已经变成新的时间、新的主题或要求重新预测，提示用户重新起局。只输出符合JSON Schema的JSON对象。`,followupSchema,1000,'answer');
     return Response.json({mode:'followup',...result});
   }catch(error){
     const message=error instanceof Error?error.message:'AI服务暂时不可用';
     if(message==='DEEPSEEK_API_KEY_NOT_CONFIGURED')return Response.json({error:'AI密钥尚未配置'},{status:503});
+    if(message==='INVALID_CHART_INPUT')return Response.json({error:'盘面输入无效，请重新起局'},{status:400});
     return Response.json({error:message.slice(0,240)},{status:502});
   }
 }

@@ -143,13 +143,24 @@ type Screen =
   | "result";
 type ResultTab =
   "omen" | "book" | "action" | "chart" | "ask" | "process" | "method";
-type SavedReading = { id: string; chart: QimenChart; focus: string };
+type SavedReading = { id: string; chart: QimenChart; focus: string; reading?: AiReading };
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 function toLocalInput(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+function wallClockMinutes(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  if (!match) return Number.NaN;
+  return Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+  ) / 60000;
 }
 function beijingNow() {
   const p = Object.fromEntries(
@@ -332,6 +343,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<SavedReading[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [samePeriodNotice, setSamePeriodNotice] = useState("");
   const [aiReading, setAiReading] = useState<AiReading | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -384,6 +396,16 @@ export default function Home() {
         },
       );
       setAiReading(response.reading);
+      setHistory((list) => {
+        const next = list.map((item) =>
+          item.chart.input.time === nextChart.input.time &&
+          item.chart.input.question === nextChart.input.question
+            ? { ...item, reading: response.reading }
+            : item,
+        );
+        localStorage.setItem("yiju-readings", JSON.stringify(next));
+        return next;
+      });
     } catch (error) {
       setAiError(error instanceof Error ? error.message : "AI解读暂时不可用");
     } finally {
@@ -421,7 +443,7 @@ export default function Home() {
         if (chart) {
           setHistory((list) => {
             const item = {
-              id: chart.input.time,
+              id: `${chart.input.time}-${Date.now()}`,
               chart,
               focus: chart.input.focus || focus,
             };
@@ -462,6 +484,25 @@ export default function Home() {
       focus,
       context: context.trim(),
     });
+    const nextMinutes = wallClockMinutes(next.input.time);
+    const priorInSamePeriod = history.find((item) => {
+      const difference = Math.abs(
+        nextMinutes - wallClockMinutes(item.chart.input.time),
+      );
+      return item.chart.xunshou === next.xunshou && difference < 20 * 60;
+    });
+    if (priorInSamePeriod) {
+      const sameQuestion =
+        priorInSamePeriod.chart.input.question.replace(/\s+/g, "") ===
+        next.input.question.replace(/\s+/g, "");
+      setSamePeriodNotice(
+        sameQuestion
+          ? `你在同一时旬内重复问了同一件事，因此值使与大部分盘面保持不变。本次重点保留第一次结果，并用现实反馈继续核验。`
+          : `这次与最近一局处于同一时旬，出现相同值使是正常的；问题只会改变主用神与解读重点，不会重新随机一张盘。`,
+      );
+    } else {
+      setSamePeriodNotice("");
+    }
     setChart(next);
     setStage(0);
     setPaused(false);
@@ -483,6 +524,7 @@ export default function Home() {
     setAiReading(null);
     setAiError("");
     setChatMessages([]);
+    setSamePeriodNotice("");
     window.scrollTo({ top: 0 });
   }
   function restore(item: SavedReading) {
@@ -491,10 +533,11 @@ export default function Home() {
     setSelectedPalace(interpretChart(item.chart).issuePalace);
     setResultTab("omen");
     setHistoryOpen(false);
-    setAiReading(null);
+    setAiReading(item.reading || null);
     setChatMessages([]);
+    setSamePeriodNotice("");
     setScreen("result");
-    void generateAiReading(item.chart);
+    if (!item.reading) void generateAiReading(item.chart);
   }
   function applyIntakeResult(result: IntakeResult) {
     setTopic(result.questionType);
@@ -653,11 +696,11 @@ export default function Home() {
   }
   async function copySummary() {
     if (!chart || !interpretation) return;
-    const title = aiReading?.omenTitle || interpretation.omenTitle;
+    const title = interpretation.omenTitle;
     const oracle = aiReading?.oracle || interpretation.oracle;
     const actions = aiReading?.actions || interpretation.actions;
     await navigator.clipboard.writeText(
-      `一局命书｜${title}·${interpretation.toneLabel}\n所问：${chart.input.question}\n局式：${chart.dunType}${chart.juNumber}局·${chart.yuan}·值使${chart.zhishi.door}\n断语：${oracle}\n行动：${actions.join("\n")}`,
+      `一局命书｜${title}·${interpretation.toneLabel}\n所问：${chart.input.question}\n主用：${interpretation.mainSymbol}（${interpretation.mainLabel}）\n局式：${chart.dunType}${chart.juNumber}局·${chart.yuan}·时段值使${chart.zhishi.door}\n断语：${oracle}\n行动：${actions.join("\n")}`,
     );
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
@@ -803,7 +846,7 @@ export default function Home() {
       chart,
       selectedPalace || interpretation.issuePalace,
     );
-    const readingTitle = aiReading?.omenTitle || interpretation.omenTitle;
+    const readingTitle = interpretation.omenTitle;
     const displayReadingTitle = readingTitle.endsWith(interpretation.toneLabel)
       ? readingTitle
           .slice(0, -interpretation.toneLabel.length)
@@ -949,10 +992,16 @@ export default function Home() {
                 <span>DeepSeek 个性化解读暂未完成：{aiError}</span>
               </div>
             )}
+            {samePeriodNotice && (
+              <div className="same-period-note">
+                <b>同一时旬说明</b>
+                <span>{samePeriodNotice}</span>
+              </div>
+            )}
             <div className="oracle-hero">
               <div className="omen-seal">
-                <small>值使</small>
-                <b>{interpretation.mainDoor}</b>
+                <small>{interpretation.mainLabel}</small>
+                <b>{interpretation.mainSymbol}</b>
                 <i>{interpretation.toneLabel}</i>
               </div>
               <div>
@@ -963,7 +1012,7 @@ export default function Home() {
                 <p>
                   {chart.dunType}
                   {chart.juNumber}局 · {chart.yuan} · 值符{chart.zhifu.star} ·
-                  值使{chart.zhishi.door}
+                  时段值使{chart.zhishi.door}
                 </p>
               </div>
             </div>
@@ -1364,7 +1413,7 @@ export default function Home() {
                 <i>02</i>
                 <h3>问题决定取用</h3>
                 <p>
-                  同一个时间只有一张盘。问题类型只决定先看哪几个宫，不会反向修改盘面。
+                  同一个时间只有一张盘。不同问题先看不同主用神；日干看主体，时干看事情，值使只看时段环境。
                 </p>
               </article>
               <article>
@@ -1864,7 +1913,7 @@ export default function Home() {
                     <b>{item.chart.input.question}</b>
                     <span>
                       {reading.omenTitle} · {reading.toneLabel} · 值使
-                      {item.chart.zhishi.door}
+                      {item.chart.zhishi.door} · 主用{reading.mainSymbol}
                     </span>
                     <em>打开命书 →</em>
                   </button>
