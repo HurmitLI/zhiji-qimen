@@ -5015,6 +5015,9 @@ body {
 }
 
 @media (max-width: 760px) {
+  .paged-result .topbar {
+    backdrop-filter: none;
+  }
   .landing-instrument {
     min-height: 255px;
     margin-top: 28px;
