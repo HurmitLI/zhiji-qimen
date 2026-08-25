@@ -52,16 +52,34 @@ export async function POST(request:Request){
     if(body.mode==='intake'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请先写下想问的事情'},{status:400});
       const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-6).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
-      const firstTurn=messages.filter(item=>item.role==='user').length<=1;
+      const userTurnCount=messages.filter(item=>item.role==='user').length;
+      const firstTurn=userTurnCount<=1;
       const task=firstTurn
-        ? `任务：用户刚写下想问的事情。先理解真实纠结，只反问一个最关键的澄清问题，并给出2到4个短选项。ready必须为false。你可以先做初步分类，但不要展示分类术语，不要回答占测结果。`
-        : `任务：结合完整对话判断信息是否已经足够定题。不要因为用户已经回答过一次就强制定题。
-- 如果仍需确认任何信息：ready必须为false；assistantMessage只问一个新的、具体的关键问题；options给2到4个与该问题直接对应的短答案。不要重复上一轮的问题。
-- 只有当主题、现实处境与本次最想看清的方向都已经明确时：ready才为true；assistantMessage必须是陈述句，只复述理解并邀请用户确认，严禁出现问号、反问或新的信息请求；options必须为空数组。
-- 如果用户回答“没有”“不知道”“都不是”或仍然模糊，不得直接ready=true，应换一个更容易回答的角度继续问。`;
+        ? `任务：用户刚写下想问的事情。先判断它是否已经是一个具体、单一、可以直接起局的问题。
+- 如果已经具体（例如“该不该辞职”“这段关系是否值得继续”“是否适合换城市”）：ready直接为true，不要反问，options为空。
+- 只有问题过于宽泛、同时包含多个主题或缺少最关键的取舍对象时：ready为false，只反问一个最关键的问题，并给2到4个短选项。
+- 起局前最多只允许这一轮澄清，不要把问事变成访谈。`
+        : `任务：这是用户对唯一一次澄清问题的回答。现在必须完成定题：ready为true，options为空数组，不得再追问任何信息。即使用户回答“不知道”“都不是”或仍然模糊，也要基于现有信息做最保守的归类，将原问题整理成一个开放、可用于奇门问事的问题。assistantMessage只能是陈述句，说明已完成整理并邀请确认，严禁出现问号、反问或新的信息请求。`;
       const result=await createResponse({messages,currentQuestion:body.question.slice(0,600)},`${baseInstructions}\n${task}\ncontextSummary只记录用户明确说过的现实背景，不得杜撰。refinedQuestion保留用户原意，不做确定性预测。`,intakeSchema,900) as unknown as IntakeResult;
+      if(!firstTurn){
+        return Response.json({
+          mode:'intake',
+          ...result,
+          ready:true,
+          options:[],
+          assistantMessage:`我已经理解你的补充，并完成这一问的整理。已归入“${result.questionType}”，重点看“${result.focus}”。确认后即可起局。`,
+        });
+      }
       const ready=Boolean(result.ready)&&!intakeResponseStillAsking(result);
-      return Response.json({mode:'intake',...result,ready});
+      return Response.json({
+        mode:'intake',
+        ...result,
+        ready,
+        options:ready?[]:result.options,
+        assistantMessage:ready
+          ? `你的问题已经足够具体，我已完成定题。已归入“${result.questionType}”，重点看“${result.focus}”。确认后即可起局。`
+          : result.assistantMessage,
+      });
     }
     if(body.mode==='clarify'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>120)return Response.json({error:'请先写下想问的问题'},{status:400});

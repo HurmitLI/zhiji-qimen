@@ -6363,6 +6363,22 @@ body {
   border-radius: 19px;
   background: #f7f7f4;
 }
+.intake-reply-area {
+  display: grid;
+  gap: 10px;
+}
+.intake-skip-button {
+  justify-self: end;
+  padding: 7px 4px;
+  border: 0;
+  color: #7a7a75;
+  background: transparent;
+  cursor: pointer;
+  font: 9px var(--sans);
+}
+.intake-skip-button:hover {
+  color: #2f2f2c;
+}
 .intake-reply-box textarea {
   min-height: 56px;
   padding: 10px;

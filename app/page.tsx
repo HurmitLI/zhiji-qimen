@@ -604,6 +604,19 @@ export default function Home() {
     if (!value) return;
     void askIntake(value);
   }
+  function skipIntakeQuestion() {
+    if (intakeLoading || intakeReady) return;
+    setIntakeOptions([]);
+    setIntakeReady(true);
+    setAiError("");
+    setIntakeMessages((messages) => [
+      ...messages,
+      {
+        role: "assistant",
+        content: `不再继续追问。我会按你目前提供的信息，将这一问归入“${topic}”，重点看“${focus}”。确认后即可起局。`,
+      },
+    ]);
+  }
   async function submitFollowup(e?: FormEvent, quickQuestion?: string) {
     e?.preventDefault();
     if (!chart || chatLoading) return;
@@ -1540,15 +1553,22 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              <form className="intake-reply-box" onSubmit={submitIntakeReply}>
-                <textarea
-                  value={intakeInput}
-                  onChange={(e) => setIntakeInput(e.target.value)}
-                  maxLength={600}
-                  placeholder="也可以直接补充你的真实想法……"
-                />
-                <button disabled={intakeLoading || intakeInput.trim().length < 2}>发送 <i>↑</i></button>
-              </form>
+              <div className="intake-reply-area">
+                <form className="intake-reply-box" onSubmit={submitIntakeReply}>
+                  <textarea
+                    value={intakeInput}
+                    onChange={(e) => setIntakeInput(e.target.value)}
+                    maxLength={600}
+                    placeholder="也可以直接补充你的真实想法……"
+                  />
+                  <button disabled={intakeLoading || intakeInput.trim().length < 2}>发送 <i>↑</i></button>
+                </form>
+                {!intakeLoading && intakeMessages.some((message) => message.role === "assistant") && (
+                  <button className="intake-skip-button" onClick={skipIntakeQuestion}>
+                    跳过追问，直接按当前问题起局 →
+                  </button>
+                )}
+              </div>
             )}
             {aiError && <small className="intake-error">AI 刚才短暂失去响应，你仍可以选择一个方向继续。</small>}
           </div>
