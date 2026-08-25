@@ -159,12 +159,6 @@ function QimenEngineVisual() {
           </span>
           <b>规则排盘 × AI 命书</b>
         </div>
-        <div className="engine-reticle">
-          <i />
-          <i />
-          <b>九宫</b>
-          <span>时空演算中</span>
-        </div>
         <div className="engine-coordinates">
           <span>天时 · TIME</span>
           <span>地利 · SPACE</span>
