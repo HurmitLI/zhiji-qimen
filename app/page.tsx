@@ -141,8 +141,7 @@ type Screen =
   | "confirm"
   | "ritual"
   | "result";
-type ResultTab =
-  "omen" | "book" | "action" | "chart" | "ask" | "process" | "method";
+type ResultTab = "book" | "chart" | "ask";
 type SavedReading = { id: string; chart: QimenChart; focus: string; reading?: AiReading };
 
 function pad(n: number) {
@@ -342,7 +341,9 @@ export default function Home() {
   const [stage, setStage] = useState(0);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState<1 | 2>(1);
-  const [resultTab, setResultTab] = useState<ResultTab>("omen");
+  const [resultTab, setResultTab] = useState<ResultTab>("book");
+  const [bookExpanded, setBookExpanded] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [soundMuted, setSoundMuted] = useState(true);
   const [layer, setLayer] = useState<Layer>("all");
   const [selectedPalace, setSelectedPalace] = useState<number>();
@@ -441,6 +442,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!rulesOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setRulesOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [rulesOpen]);
+
+  useEffect(() => {
     if (screen !== "ritual" || paused) return;
     const delay =
       stage === 11 ? (speed === 2 ? 2800 : 5300) : speed === 2 ? 900 : 1650;
@@ -464,7 +474,8 @@ export default function Home() {
           void generateAiReading(chart);
         }
         setScreen("result");
-        setResultTab("omen");
+        setResultTab("book");
+        setBookExpanded(false);
         setSelectedPalace(interpretation?.issuePalace);
         window.scrollTo({ top: 0 });
       }
@@ -526,7 +537,9 @@ export default function Home() {
     setChart(null);
     setStage(0);
     setPaused(false);
-    setResultTab("omen");
+    setResultTab("book");
+    setBookExpanded(false);
+    setRulesOpen(false);
     setSelectedPalace(undefined);
     setAiReading(null);
     setAiError("");
@@ -538,7 +551,9 @@ export default function Home() {
     setChart(item.chart);
     setFocus(item.focus);
     setSelectedPalace(interpretChart(item.chart).issuePalace);
-    setResultTab("omen");
+    setResultTab("book");
+    setBookExpanded(false);
+    setRulesOpen(false);
     setHistoryOpen(false);
     setAiReading(item.reading || null);
     setChatMessages([]);
@@ -892,21 +907,16 @@ export default function Home() {
           <nav className="result-nav">
             {(
               [
-                ["omen", "总断"],
                 ["book", "命书"],
-                ["action", "行动"],
                 ["chart", "命盘"],
-                ["ask", "AI追问"],
-                ["process", "过程"],
-                ["method", "规则"],
+                ["ask", "问命"],
               ] as [ResultTab, string][]
-            ).map(([key, label], i) => (
+            ).map(([key, label]) => (
               <button
                 key={key}
                 className={resultTab === key ? "active" : ""}
                 onClick={() => setResultTab(key)}
               >
-                <i>{i + 1}</i>
                 {label}
               </button>
             ))}
@@ -944,6 +954,7 @@ export default function Home() {
             >
               重看起局
             </button>
+            <button onClick={() => setRulesOpen(true)}>规则说明</button>
             <button onClick={copySummary}>
               {copied ? "命书已复制" : "分享命书摘要"}
             </button>
@@ -986,18 +997,18 @@ export default function Home() {
           </button>
         </section>
 
-        {resultTab === "omen" && (
-          <section className="result-view omen-page">
+        {resultTab === "book" && (
+          <section className="result-view book-page unified-book-page">
             <div className="page-kicker">
-              <span>第五页 · 本局显相</span>
-              <b>先看这一局最核心的判断</b>
+              <span>本局命书</span>
+              <b>先看结论，再按需要展开细节</b>
             </div>
             {aiLoading && (
               <div className="ai-status">
                 <i />
                 <span>
                   <b>DeepSeek AI 正在结合你的问题写命书</b>
-                  <small>规则盘面已经生成，你可以先看基础总断。</small>
+                  <small>规则盘面已经生成，你可以先看基础判断。</small>
                 </span>
               </div>
             )}
@@ -1037,7 +1048,7 @@ export default function Home() {
                 <p>{aiReading.overview}</p>
               </div>
             )}
-            <div className="omen-signals">
+            <div className="omen-signals compact-signals">
               {interpretation.signals.map((s) => (
                 <button
                   key={s.label}
@@ -1053,24 +1064,18 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <div className="page-turn">
-              <span>01 / 07 · 结果阅读</span>
-              <button onClick={() => setResultTab("book")}>
-                继续读一局命书 →
-              </button>
+            <div className="book-section-heading">
+              <div>
+                <span>{aiReading ? "DeepSeek AI 个性命书" : "一局命书"}</span>
+                <h3>命书六章</h3>
+                <p>主运、课题、方向、机会、阻力与转机。</p>
+              </div>
+              {bookExpanded && (
+                <button onClick={() => setBookExpanded(false)}>收起细节</button>
+              )}
             </div>
-          </section>
-        )}
-
-        {resultTab === "book" && (
-          <section className="result-view book-page">
-            <div className="section-title fortune-title">
-              <span>第六页 · 命书六章</span>
-              <h3>{aiReading ? "DeepSeek AI 个性命书" : "一局命书"}</h3>
-              <p>主运、课题、方向、机会、阻力与转机分章阅读。</p>
-            </div>
-            <div className="fortune-grid">
-              {readingChapters.map((item, i) => {
+            <div className={`fortune-grid ${bookExpanded ? "expanded" : "collapsed"}`}>
+              {(bookExpanded ? readingChapters : readingChapters.slice(0, 3)).map((item, i) => {
                 const base =
                   interpretation.fortuneChapters.find(
                     (chapter) => chapter.label === item.label,
@@ -1093,33 +1098,18 @@ export default function Home() {
                 );
               })}
             </div>
-            <div className="page-turn">
-              <button className="back" onClick={() => setResultTab("omen")}>
-                ← 返回总断
+            {!bookExpanded && (
+              <button className="book-expand-button" onClick={() => setBookExpanded(true)}>
+                还有机会、阻力与转机三章 · 展开阅读 →
               </button>
-              <span>02 / 07 · 结果阅读</span>
-              <button onClick={() => setResultTab("action")}>
-                继续看行动建议 →
-              </button>
-            </div>
-          </section>
-        )}
-
-        {resultTab === "action" && (
-          <section className="result-view action-page">
-            <div className="page-kicker">
-              <span>第七页 · 把命书带回现实</span>
-              <b>这一局之后，具体做什么</b>
-            </div>
-            <div className="action-layout">
-              <div className="action-scroll">
-                <span>
-                  {aiReading ? "DeepSeek AI 生成的转机行动" : "转机行动"}
-                </span>
-                <h3>转运三步</h3>
-                <p>
-                  所谓“转运”，不是等待命运改变，而是用盘面提示安排接下来的现实动作。
-                </p>
+            )}
+            <div className="book-action-block">
+              <div className="book-action-heading">
+                <span>{aiReading ? "DeepSeek AI 给出的现实动作" : "把命书带回现实"}</span>
+                <h3>接下来，先做这三件事</h3>
+                <p>不是等待命运改变，而是用盘面提示安排可以验证的动作。</p>
+              </div>
+              <div className="book-action-list">
                 {readingActions.map((item, i) => (
                   <label key={item}>
                     <input
@@ -1135,33 +1125,12 @@ export default function Home() {
                     <b>{item}</b>
                   </label>
                 ))}
-                <small>{checks.filter(Boolean).length}/3 已完成</small>
               </div>
-              <aside className="evidence-quick">
-                <span>盘面关键印记</span>
-                {interpretation.signals.map((s) => (
-                  <button
-                    key={s.label}
-                    onClick={() => {
-                      setSelectedPalace(s.palace);
-                      setResultTab("chart");
-                    }}
-                  >
-                    <ToneDot tone={s.tone} />
-                    <small>{s.label}</small>
-                    <b>{s.value}</b>
-                    <em>{s.detail}</em>
-                  </button>
-                ))}
-              </aside>
             </div>
             <div className="page-turn">
-              <button className="back" onClick={() => setResultTab("book")}>
-                ← 返回命书
-              </button>
-              <span>03 / 07 · 结果阅读</span>
+              <span>01 / 03 · 命书</span>
               <button onClick={() => setResultTab("chart")}>
-                查看九宫依据 →
+                查看命盘依据 →
               </button>
             </div>
           </section>
@@ -1267,12 +1236,12 @@ export default function Home() {
               </aside>
             </div>
             <div className="page-turn">
-              <button className="back" onClick={() => setResultTab("action")}>
-                ← 返回行动
+              <button className="back" onClick={() => setResultTab("book")}>
+                ← 返回命书
               </button>
-              <span>04 / 07 · 结果阅读</span>
+              <span>02 / 03 · 命盘</span>
               <button onClick={() => setResultTab("ask")}>
-                围绕这一局继续问 →
+                继续向 AI 问命 →
               </button>
             </div>
           </section>
@@ -1354,141 +1323,75 @@ export default function Home() {
               <button className="back" onClick={() => setResultTab("chart")}>
                 ← 返回命盘
               </button>
-              <span>05 / 07 · 结果阅读</span>
-              <button onClick={() => setResultTab("process")}>
-                查看起局过程 →
-              </button>
-            </div>
-          </section>
-        )}
-
-        {resultTab === "process" && (
-          <section className="result-view process-view">
-            <div className="process-intro">
-              <span>完整起局记录</span>
-              <h2>
-                十二步不是等待动画，
-                <br />
-                每一步都有可核对的输出。
-              </h2>
-              <button
-                onClick={() => {
-                  setScreen("ritual");
-                  setStage(0);
-                  setPaused(false);
-                }}
-              >
-                全屏重新播放
-              </button>
-            </div>
-            <div className="process-ledger">
-              {stages.map((s, i) => (
-                <article key={s.name}>
-                  <i>{pad(i + 1)}</i>
-                  <div>
-                    <small>{s.key}</small>
-                    <h3>{s.title}</h3>
-                    <p>{s.desc}</p>
-                  </div>
-                  <b>{stageOutput(chart, i)}</b>
-                </article>
-              ))}
-            </div>
-            <div className="page-turn">
-              <button className="back" onClick={() => setResultTab("ask")}>
-                ← 返回追问
-              </button>
-              <span>06 / 07 · 结果阅读</span>
-              <button onClick={() => setResultTab("method")}>
-                查看规则边界 →
-              </button>
-            </div>
-          </section>
-        )}
-
-        {resultTab === "method" && (
-          <section className="result-view method-view">
-            <div className="method-hero">
-              <span>规则与边界</span>
-              <h2>
-                把“玄”拆成规则，
-                <br />
-                把边界说在前面。
-              </h2>
-              <p>
-                本产品展示的是传统奇门排盘结构，并不主张它具有科学预测能力。
-              </p>
-            </div>
-            <div className="method-grid">
-              <article>
-                <i>01</i>
-                <h3>时间决定盘</h3>
-                <p>
-                  公历时间换算节令与四柱，再据节令、日干支和三元查定阴阳遁与局数。
-                </p>
-              </article>
-              <article>
-                <i>02</i>
-                <h3>问题决定取用</h3>
-                <p>
-                  同一个时间只有一张盘。不同问题先看不同主用神；日干看主体，时干看事情，值使只看时段环境。
-                </p>
-              </article>
-              <article>
-                <i>03</i>
-                <h3>中宫寄坤</h3>
-                <p>
-                  当前规则集中宫相关判断统一寄坤，这是本版本明确固定的专业口径。
-                </p>
-              </article>
-              <article>
-                <i>04</i>
-                <h3>解释可追溯</h3>
-                <p>
-                  每条提示都标注宫位、天盘、地盘、九星、八门和八神，避免只给一段无法核对的话。
-                </p>
-              </article>
-            </div>
-            <div className="ai-boundary-map">
-              <div>
-                <i>RULE</i>
-                <span>
-                  <b>规则引擎负责成盘</b>
-                  <small>时间、节令、四柱、遁局、九宫、值符与值使</small>
-                </span>
-              </div>
-              <em>不可改盘 →</em>
-              <div className="ai">
-                <i>AI</i>
-                <span>
-                  <b>DeepSeek 负责理解你</b>
-                  <small>凝练问题、个性命书、行动建议与同局追问</small>
-                </span>
-              </div>
-              <p>
-                AI
-                不能修改盘面，也不代表科学预测，只把传统象意转成与你问题相关、可以现实核验的语言。
-              </p>
-            </div>
-            <div className="boundary-panel">
-              <b>不提供</b>
-              <span>
-                精确位置 · 金额 · 生死 · 医疗诊断 · 法律判断 · 投资涨跌 ·
-                确定性未来
-              </span>
-              <b>适合用来</b>
-              <span>
-                观看传统起局过程 · 整理注意力 · 产生现实核验问题 · 文化体验
-              </span>
-            </div>
-            <div className="page-turn">
-              <button className="back" onClick={() => setResultTab("process")}>
-                ← 返回过程
-              </button>
-              <span>07 / 07 · 结果阅读</span>
+              <span>03 / 03 · 问命</span>
               <button onClick={reset}>完成 · 再起一局</button>
             </div>
           </section>
+        )}
+
+        {rulesOpen && (
+          <div
+            className="rules-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="排盘规则与使用边界"
+            onClick={() => setRulesOpen(false)}
+          >
+            <aside className="rules-drawer" onClick={(event) => event.stopPropagation()}>
+              <button
+                className="rules-close"
+                onClick={() => setRulesOpen(false)}
+                aria-label="关闭规则说明"
+              >
+                ×
+              </button>
+              <div className="method-hero">
+                <span>排盘规则与使用边界</span>
+                <h2>规则负责成盘，AI 负责解命。</h2>
+                <p>本产品展示传统奇门排盘结构，并不主张它具有科学预测能力。</p>
+              </div>
+              <div className="method-grid">
+                <article>
+                  <i>01</i>
+                  <h3>时间决定盘</h3>
+                  <p>公历时间换算节令与四柱，再据节令、日干支和三元查定阴阳遁与局数。</p>
+                </article>
+                <article>
+                  <i>02</i>
+                  <h3>问题决定取用</h3>
+                  <p>同一个时间只有一张盘。不同问题看不同主用神；日干看主体，时干看事情。</p>
+                </article>
+                <article>
+                  <i>03</i>
+                  <h3>结果可以追溯</h3>
+                  <p>每条提示都可以回到对应宫位，查看天盘、地盘、九星、八门与八神。</p>
+                </article>
+              </div>
+              <div className="ai-boundary-map">
+                <div>
+                  <i>RULE</i>
+                  <span>
+                    <b>规则引擎负责成盘</b>
+                    <small>时间、节令、四柱、遁局、九宫、值符与值使</small>
+                  </span>
+                </div>
+                <em>不可改盘 →</em>
+                <div className="ai">
+                  <i>AI</i>
+                  <span>
+                    <b>DeepSeek 负责理解你</b>
+                    <small>凝练问题、个性命书、行动建议与同局追问</small>
+                  </span>
+                </div>
+              </div>
+              <div className="boundary-panel">
+                <b>不提供</b>
+                <span>精确位置 · 金额 · 生死 · 医疗诊断 · 法律判断 · 投资涨跌 · 确定性未来</span>
+                <b>适合用来</b>
+                <span>观看传统起局过程 · 整理注意力 · 产生现实核验问题 · 文化体验</span>
+              </div>
+            </aside>
+          </div>
         )}
         <footer className="result-footer">
           <span>一局 · 奇门 AI 问事</span>
