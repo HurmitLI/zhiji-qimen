@@ -13,6 +13,7 @@
   --sans:
     -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
   --serif: "Songti SC", "Noto Serif SC", serif;
+  --kai: "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", serif;
 }
 * {
   box-sizing: border-box;
@@ -8049,5 +8050,203 @@ body {
   .confirm-advanced summary small {
     order: 3;
     width: 100%;
+  }
+}
+
+/* Nine-palace board: a looser, calligraphic manuscript rhythm */
+.result-screen .matrix-stage {
+  min-height: 0;
+  padding: clamp(14px, 2.4vw, 30px);
+  border: 0;
+  border-radius: 34px 12px 34px 12px;
+  background:
+    radial-gradient(circle at 50% 47%, rgba(182, 143, 79, 0.1), transparent 29%),
+    radial-gradient(circle at 12% 14%, rgba(99, 132, 130, 0.08), transparent 28%),
+    linear-gradient(145deg, rgba(252, 250, 244, 0.96), rgba(239, 235, 224, 0.8));
+  box-shadow:
+    inset 0 0 0 1px rgba(80, 71, 54, 0.06),
+    0 24px 64px rgba(52, 49, 42, 0.07);
+}
+.result-screen .palace-matrix.result {
+  gap: clamp(5px, 0.7vw, 10px);
+  width: min(720px, 100%);
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.result-screen .palace-matrix.result .matrix-cell {
+  overflow: hidden;
+  border: 1px solid rgba(91, 79, 59, 0.1);
+  border-radius: 21px 8px 21px 8px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 252, 0.94), rgba(244, 241, 233, 0.74));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 18px rgba(58, 52, 41, 0.04);
+}
+.result-screen .palace-matrix.result .matrix-cell:nth-child(even) {
+  border-radius: 8px 21px 8px 21px;
+  background:
+    linear-gradient(155deg, rgba(247, 245, 237, 0.92), rgba(255, 255, 252, 0.82));
+}
+.result-screen .palace-matrix.result .matrix-cell::before {
+  position: absolute;
+  top: 51%;
+  left: 50%;
+  width: 48px;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(159, 119, 65, 0.22), transparent);
+  transform: translate(-50%, -50%);
+}
+.result-screen .palace-matrix.result .matrix-cell.center {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.78) 0 12%, transparent 12.5%),
+    radial-gradient(circle at 50% 45%, transparent 0 27%, rgba(151, 120, 72, 0.12) 27.5% 28%, transparent 28.5%),
+    linear-gradient(145deg, #ebe6d9, #f4f0e6);
+}
+.result-screen .palace-matrix.result .matrix-cell:hover {
+  background: #fffef9;
+  box-shadow: 0 14px 30px rgba(72, 61, 43, 0.09);
+  transform: translateY(-3px) rotate(-0.12deg);
+}
+.result-screen .palace-matrix.result .matrix-cell.active {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.92), transparent 52%),
+    linear-gradient(145deg, #faf1dc, #f2e3c2);
+  box-shadow:
+    inset 0 0 0 1px rgba(154, 112, 55, 0.58),
+    0 15px 34px rgba(111, 81, 39, 0.1);
+}
+.result-screen .palace-matrix.result .matrix-cell.primary::after {
+  top: 14px;
+  right: auto;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  height: auto;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(180deg, transparent, #9e7747 22%, #9e7747 78%, transparent);
+}
+.result-screen .palace-matrix.result .cell-coord {
+  top: 13px;
+  left: 15px;
+  color: #94928a;
+  font: 8px var(--sans);
+  letter-spacing: 0.16em;
+}
+.result-screen .palace-matrix.result .cell-role {
+  top: 11px;
+  right: 12px;
+  padding: 3px 7px;
+  color: #89663a;
+  background: rgba(162, 123, 68, 0.07);
+  font-size: 7px;
+  letter-spacing: 0.12em;
+}
+.result-screen .palace-matrix.result .cell-sky {
+  top: 31%;
+  left: 42%;
+  color: #292b28;
+  font-family: var(--kai);
+  font-size: clamp(29px, 3.2vw, 42px);
+  font-weight: 400;
+}
+.result-screen .palace-matrix.result .cell-earth {
+  top: 31%;
+  left: 61%;
+  color: #9d988e;
+  font-family: var(--kai);
+  font-size: clamp(12px, 1.2vw, 17px);
+}
+.result-screen .palace-matrix.result .cell-door {
+  top: 63%;
+  color: #92682f;
+  font-family: var(--kai);
+  font-size: clamp(18px, 1.9vw, 25px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+.result-screen .palace-matrix.result .cell-star,
+.result-screen .palace-matrix.result .cell-god {
+  bottom: 13px;
+  font-family: var(--kai);
+  font-size: 10px;
+}
+.result-screen .palace-matrix.result .cell-star {
+  left: 15px;
+  color: #557d78;
+}
+.result-screen .palace-matrix.result .cell-god {
+  right: 15px;
+  color: #8e7147;
+}
+.result-screen .palace-matrix.result .matrix-cell mark {
+  bottom: 12px;
+  font-family: var(--kai);
+}
+.result-screen .palace-matrix.result.layer-sky .cell-sky,
+.result-screen .palace-matrix.result.layer-earth .cell-earth,
+.result-screen .palace-matrix.result.layer-star .cell-star,
+.result-screen .palace-matrix.result.layer-door .cell-door,
+.result-screen .palace-matrix.result.layer-god .cell-god {
+  top: 51%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  color: #343531;
+  font-family: var(--kai);
+  font-size: clamp(25px, 2.7vw, 37px);
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 680px) {
+  .result-screen .matrix-stage {
+    padding: 8px;
+    border-radius: 20px 8px 20px 8px;
+  }
+  .result-screen .palace-matrix.result {
+    gap: 4px;
+  }
+  .result-screen .palace-matrix.result .matrix-cell,
+  .result-screen .palace-matrix.result .matrix-cell:nth-child(even) {
+    border-radius: 11px 5px 11px 5px;
+  }
+  .result-screen .palace-matrix.result .cell-coord {
+    top: 6px;
+    left: 7px;
+    font-size: 6px;
+  }
+  .result-screen .palace-matrix.result .cell-role {
+    top: 5px;
+    right: 5px;
+    max-width: 58%;
+    font-size: 5px;
+  }
+  .result-screen .palace-matrix.result .cell-sky {
+    top: 31%;
+    font-size: 24px;
+  }
+  .result-screen .palace-matrix.result .cell-earth {
+    top: 31%;
+    font-size: 10px;
+  }
+  .result-screen .palace-matrix.result .cell-door {
+    top: 63%;
+    font-size: 15px;
+  }
+  .result-screen .palace-matrix.result .cell-star,
+  .result-screen .palace-matrix.result .cell-god {
+    bottom: 6px;
+    font-size: 7px;
+  }
+  .result-screen .palace-matrix.result .cell-star {
+    left: 7px;
+  }
+  .result-screen .palace-matrix.result .cell-god {
+    right: 7px;
   }
 }

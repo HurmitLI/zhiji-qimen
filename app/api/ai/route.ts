@@ -82,7 +82,7 @@ async function createResponse(input:unknown,instructions:string,format:unknown,m
   if(!key)throw new Error('DEEPSEEK_API_KEY_NOT_CONFIGURED');
   const response=await fetch(DEEPSEEK_URL,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,instructions,input:JSON.stringify(input),text:{format},reasoning:{effort:'none'},temperature:.35,max_output_tokens:maxOutputTokens})});
   const data=await response.json() as {error?:{message?:string};output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>};
-  if(!response.ok)throw new Error(data.error?.message||`DeepSeek请求失败：${response.status}`);
+  if(!response.ok)throw new Error(data.error?.message||`AI请求失败：${response.status}`);
   const text=textFromResponse(data).trim();
   try{return JSON.parse(text) as Record<string,unknown>}catch{
     const start=text.indexOf('{');const end=text.lastIndexOf('}');

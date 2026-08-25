@@ -179,7 +179,7 @@ export function interpretChart(chart:QimenChart){
 
   return {
     summary,insights,signals,checklist,fortuneChapters,actions,oracle,tone:mainTone,toneLabel,
-    mainDoor:chart.zhishi.door,mainSymbol:primarySymbol,mainLabel:profile.primary.label,
+    mainDoor:issue.door||chart.zhishi.door,mainSymbol:primarySymbol,mainLabel:profile.primary.label,
     omenTitle,focusPalaces:[...new Set([issue.palace,self.palace,matter.palace])],issuePalace:issue.palace,
     selfPalace:self.palace,actionPalace:matter.palace,matterPalace:matter.palace,
     environmentPalace:environment.palace,environmentDoor:chart.zhishi.door,

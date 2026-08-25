@@ -242,15 +242,19 @@ function PalaceMatrix({
 function RitualVisual({
   chart,
   stage,
+  revealDoor,
   muted,
+  paused,
   speed,
 }: {
   chart: QimenChart;
   stage: number;
+  revealDoor: string;
   muted: boolean;
+  paused: boolean;
   speed: 1 | 2;
 }) {
-  const videoSrc = mediaForStage(stage, chart.zhishi.door);
+  const videoSrc = mediaForStage(stage, revealDoor);
   const videoRef = useRef<HTMLVideoElement>(null);
   const playbackRate =
     stage <= 5
@@ -273,6 +277,22 @@ function RitualVisual({
 
   useEffect(syncPlaybackRate, [videoSrc, syncPlaybackRate]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = muted;
+    if (paused) {
+      video.pause();
+      return;
+    }
+    const playback = video.play();
+    playback?.catch(() => {
+      video.muted = true;
+      void video.play();
+    });
+    return () => video.pause();
+  }, [muted, paused, videoSrc]);
+
   return (
     <div className={`ritual-universe phase-${stage}`}>
       <video
@@ -292,11 +312,11 @@ function RitualVisual({
       {stage === 11 && (
         <div className="door-reveal-caption">
           <small>DESTINY GATE REVEALED</small>
-          <span>本局值使</span>
-          <b>{chart.zhishi.door}</b>
+          <span>本局主门</span>
+          <b>{revealDoor}</b>
           <em>
-            {palaceByNumber(chart, chart.zhishi.palace).direction} ·{" "}
-            {palaceByNumber(chart, chart.zhishi.palace).name}
+            {palaceByNumber(chart, chart.doorIndex[revealDoor] || chart.zhishi.palace).direction} ·{" "}
+            {palaceByNumber(chart, chart.doorIndex[revealDoor] || chart.zhishi.palace).name}
           </em>
         </div>
       )}
@@ -371,9 +391,10 @@ export default function Home() {
 
   useEffect(() => {
     if (!chart) return;
+    const revealDoor = interpretChart(chart).mainDoor;
     const sources = [
       ritualMedia.ritual,
-      mediaForStage(11, chart.zhishi.door),
+      mediaForStage(11, revealDoor),
     ];
     const preloaders = [...new Set(sources)].map((src) => {
       const video = document.createElement("video");
@@ -473,6 +494,7 @@ export default function Home() {
           });
           void generateAiReading(chart);
         }
+        setSoundMuted(true);
         setScreen("result");
         setResultTab("book");
         setBookExpanded(false);
@@ -524,6 +546,7 @@ export default function Home() {
     setChart(next);
     setStage(0);
     setPaused(false);
+    setSoundMuted(false);
     setAiReading(null);
     setAiError("");
     setChatMessages([]);
@@ -537,6 +560,7 @@ export default function Home() {
     setChart(null);
     setStage(0);
     setPaused(false);
+    setSoundMuted(true);
     setResultTab("book");
     setBookExpanded(false);
     setRulesOpen(false);
@@ -729,6 +753,7 @@ export default function Home() {
   }
 
   if (screen === "ritual" && chart) {
+    const revealDoor = interpretation?.mainDoor || chart.zhishi.door;
     return (
       <main className={`app-shell ritual-screen stage-${stage}`}>
         <div className="noise" />
@@ -781,7 +806,9 @@ export default function Home() {
             <RitualVisual
               chart={chart}
               stage={stage}
+              revealDoor={revealDoor}
               muted={soundMuted}
+              paused={paused}
               speed={speed}
             />
             <div className="stage-output">
@@ -842,9 +869,6 @@ export default function Home() {
             </button>
             <button onClick={() => setSpeed((v) => (v === 1 ? 2 : 1))}>
               {speed}× 速度
-            </button>
-            <button onClick={() => setSoundMuted((v) => !v)}>
-              {soundMuted ? "开启音效" : "关闭音效"}
             </button>
             <div className="transport-track">
               <i style={{ width: `${((stage + 1) / 12) * 100}%` }} />
@@ -940,8 +964,8 @@ export default function Home() {
             )}
             <div className="reading-badges">
               <span>盘面由规则计算</span>
-              {aiReading && <b>DeepSeek AI 已生成</b>}
-              {aiLoading && <em>DeepSeek AI 命书生成中…</em>}
+              {aiReading && <b>AI 个性命书已生成</b>}
+              {aiLoading && <em>AI 命书生成中…</em>}
             </div>
           </div>
           <div className="mast-actions">
@@ -950,6 +974,7 @@ export default function Home() {
                 setScreen("ritual");
                 setStage(0);
                 setPaused(false);
+                setSoundMuted(false);
               }}
             >
               重看起局
@@ -979,9 +1004,9 @@ export default function Home() {
             <span>
               <b>
                 {aiLoading
-                  ? "DeepSeek 正在写命书"
+                  ? "AI 正在写命书"
                   : aiReading
-                    ? "DeepSeek 个性命书已生成"
+                    ? "AI 个性命书已生成"
                     : "基础命书模式"}
               </b>
               <small>AI 只解读，不修改任何盘面数据</small>
@@ -1007,7 +1032,7 @@ export default function Home() {
               <div className="ai-status">
                 <i />
                 <span>
-                  <b>DeepSeek AI 正在结合你的问题写命书</b>
+                  <b>AI 正在结合你的问题写命书</b>
                   <small>规则盘面已经生成，你可以先看基础判断。</small>
                 </span>
               </div>
@@ -1015,7 +1040,7 @@ export default function Home() {
             {aiError && (
               <div className="ai-fallback">
                 <b>基础命书已就绪</b>
-                <span>DeepSeek 个性化解读暂未完成：{aiError}</span>
+                <span>AI 个性化解读暂未完成：{aiError}</span>
               </div>
             )}
             {samePeriodNotice && (
@@ -1032,7 +1057,7 @@ export default function Home() {
               </div>
               <div>
                 <span>
-                  {aiReading ? "DeepSeek AI 个性化核心断语" : "本局核心断语"}
+                  {aiReading ? "AI 个性化核心断语" : "本局核心断语"}
                 </span>
                 <h2>{readingOracle}</h2>
                 <p>
@@ -1044,7 +1069,7 @@ export default function Home() {
             </div>
             {aiReading && (
               <div className="ai-overview">
-                <span>DeepSeek AI 综合解读</span>
+                <span>AI 综合解读</span>
                 <p>{aiReading.overview}</p>
               </div>
             )}
@@ -1066,7 +1091,7 @@ export default function Home() {
             </div>
             <div className="book-section-heading">
               <div>
-                <span>{aiReading ? "DeepSeek AI 个性命书" : "一局命书"}</span>
+                <span>{aiReading ? "AI 个性命书" : "一局命书"}</span>
                 <h3>命书六章</h3>
                 <p>主运、课题、方向、机会、阻力与转机。</p>
               </div>
@@ -1105,7 +1130,7 @@ export default function Home() {
             )}
             <div className="book-action-block">
               <div className="book-action-heading">
-                <span>{aiReading ? "DeepSeek AI 给出的现实动作" : "把命书带回现实"}</span>
+                <span>{aiReading ? "AI 给出的现实动作" : "把命书带回现实"}</span>
                 <h3>接下来，先做这三件事</h3>
                 <p>不是等待命运改变，而是用盘面提示安排可以验证的动作。</p>
               </div>
@@ -1250,10 +1275,10 @@ export default function Home() {
         {resultTab === "ask" && (
           <section className="result-view ask-page">
             <div className="ask-heading">
-              <span>同局追问 · DeepSeek AI 问命官</span>
+              <span>同局追问 · AI 问命官</span>
               <h2>继续问这一局</h2>
               <p>
-                DeepSeek AI
+                AI
                 会沿用刚才的时间盘、你的问题和命书回答，不会重新随机起盘。
               </p>
             </div>
@@ -1285,7 +1310,7 @@ export default function Home() {
                       className={`chat-message ${message.role}`}
                     >
                       <small>
-                        {message.role === "user" ? "你" : "DeepSeek AI"}
+                        {message.role === "user" ? "你" : "AI 问命官"}
                       </small>
                       <p>{message.content}</p>
                     </div>
@@ -1314,7 +1339,7 @@ export default function Home() {
               </form>
             </div>
             <div className="ask-boundary">
-              <b>DeepSeek AI 负责个性化解读</b>
+              <b>AI 负责个性化解读</b>
               <span>
                 排盘结果由规则引擎固定，AI 无法修改值符、值使、九宫与局数。
               </span>
@@ -1379,7 +1404,7 @@ export default function Home() {
                 <div className="ai">
                   <i>AI</i>
                   <span>
-                    <b>DeepSeek 负责理解你</b>
+                    <b>AI 负责理解你</b>
                     <small>凝练问题、个性命书、行动建议与同局追问</small>
                   </span>
                 </div>
@@ -1410,7 +1435,7 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>QIMEN × DEEPSEEK</small>
+              <small>QIMEN × AI</small>
             </span>
           </div>
           <button className="ghost-button" onClick={() => setScreen("landing")}>
@@ -1555,7 +1580,7 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>QIMEN × DEEPSEEK</small>
+              <small>QIMEN × AI</small>
             </span>
           </div>
           <div className="flow-progress">
@@ -1687,7 +1712,7 @@ export default function Home() {
           <i>壹</i>
           <span>
             <b>一局</b>
-            <small>QIMEN × DEEPSEEK</small>
+            <small>QIMEN × AI</small>
           </span>
         </div>
         <nav className="oracle-nav" aria-label="首页导航">
