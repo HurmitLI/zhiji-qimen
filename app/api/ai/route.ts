@@ -1,7 +1,7 @@
 import type { AiRequest } from '../../../lib/ai';
 
-const OPENAI_URL='https://api.openai.com/v1/responses';
-const MODEL='gpt-5-mini';
+const DEEPSEEK_URL='https://api.deepseek.com/responses';
+const MODEL='deepseek-v4-flash';
 
 const baseInstructions=`你是“一局”产品的奇门命书解读智能体。奇门遁甲属于传统文化象意体系，不具有科学预测能力。
 必须遵守：
@@ -12,9 +12,9 @@ const baseInstructions=`你是“一局”产品的奇门命书解读智能体�
 5. 使用自然、克制、具体的简体中文。避免套话，不恐吓，不制造依赖，不声称超自然能力。
 6. 每条解读必须能回到输入中的值使、值符、九星、八门、八神、宫位或空亡等证据。`;
 
-const clarifySchema={type:'json_schema',name:'clarified_qimen_question',strict:true,schema:{type:'object',additionalProperties:false,properties:{refinedQuestion:{type:'string',minLength:6,maxLength:120},reason:{type:'string',minLength:8,maxLength:100}},required:['refinedQuestion','reason']}};
-const readingSchema={type:'json_schema',name:'qimen_destiny_reading',strict:true,schema:{type:'object',additionalProperties:false,properties:{omenTitle:{type:'string',minLength:2,maxLength:12},oracle:{type:'string',minLength:20,maxLength:100},overview:{type:'string',minLength:40,maxLength:220},chapters:{type:'array',minItems:6,maxItems:6,items:{type:'object',additionalProperties:false,properties:{label:{type:'string',enum:['当下主运','人生课题','适合方向','机会来源','主要阻力','转机信号']},title:{type:'string',minLength:2,maxLength:24},body:{type:'string',minLength:35,maxLength:180},evidence:{type:'string',minLength:4,maxLength:80}},required:['label','title','body','evidence']}},actions:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:18,maxLength:100}},followupPrompts:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:6,maxLength:50}}},required:['omenTitle','oracle','overview','chapters','actions','followupPrompts']}};
-const followupSchema={type:'json_schema',name:'qimen_followup_answer',strict:true,schema:{type:'object',additionalProperties:false,properties:{answer:{type:'string',minLength:40,maxLength:500}},required:['answer']}};
+const clarifySchema={type:'json_schema',name:'clarified_qimen_question',schema:{type:'object',additionalProperties:false,properties:{refinedQuestion:{type:'string',minLength:6,maxLength:120},reason:{type:'string',minLength:8,maxLength:100}},required:['refinedQuestion','reason']}};
+const readingSchema={type:'json_schema',name:'qimen_destiny_reading',schema:{type:'object',additionalProperties:false,properties:{omenTitle:{type:'string',minLength:2,maxLength:12},oracle:{type:'string',minLength:20,maxLength:100},overview:{type:'string',minLength:40,maxLength:220},chapters:{type:'array',minItems:6,maxItems:6,items:{type:'object',additionalProperties:false,properties:{label:{type:'string',enum:['当下主运','人生课题','适合方向','机会来源','主要阻力','转机信号']},title:{type:'string',minLength:2,maxLength:24},body:{type:'string',minLength:35,maxLength:180},evidence:{type:'string',minLength:4,maxLength:80}},required:['label','title','body','evidence']}},actions:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:18,maxLength:100}},followupPrompts:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:6,maxLength:50}}},required:['omenTitle','oracle','overview','chapters','actions','followupPrompts']}};
+const followupSchema={type:'json_schema',name:'qimen_followup_answer',schema:{type:'object',additionalProperties:false,properties:{answer:{type:'string',minLength:40,maxLength:500}},required:['answer']}};
 
 function textFromResponse(data:{output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>}){
   if(data.output_text)return data.output_text;
@@ -23,11 +23,11 @@ function textFromResponse(data:{output_text?:string;output?:Array<{content?:Arra
 }
 
 async function createResponse(input:unknown,instructions:string,format:unknown,maxOutputTokens:number){
-  const key=process.env.OPENAI_API_KEY;
-  if(!key)throw new Error('OPENAI_API_KEY_NOT_CONFIGURED');
-  const response=await fetch(OPENAI_URL,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,instructions,input:JSON.stringify(input),text:{format},max_output_tokens:maxOutputTokens,store:false})});
+  const key=process.env.DEEPSEEK_API_KEY;
+  if(!key)throw new Error('DEEPSEEK_API_KEY_NOT_CONFIGURED');
+  const response=await fetch(DEEPSEEK_URL,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,instructions,input:JSON.stringify(input),text:{format},reasoning:{effort:'none'},temperature:.35,max_output_tokens:maxOutputTokens})});
   const data=await response.json() as {error?:{message?:string};output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>};
-  if(!response.ok)throw new Error(data.error?.message||`OpenAI请求失败：${response.status}`);
+  if(!response.ok)throw new Error(data.error?.message||`DeepSeek请求失败：${response.status}`);
   return JSON.parse(textFromResponse(data)) as Record<string,unknown>;
 }
 
@@ -57,7 +57,7 @@ export async function POST(request:Request){
     return Response.json({mode:'followup',...result});
   }catch(error){
     const message=error instanceof Error?error.message:'AI服务暂时不可用';
-    if(message==='OPENAI_API_KEY_NOT_CONFIGURED')return Response.json({error:'AI密钥尚未配置'},{status:503});
+    if(message==='DEEPSEEK_API_KEY_NOT_CONFIGURED')return Response.json({error:'AI密钥尚未配置'},{status:503});
     return Response.json({error:message.slice(0,240)},{status:502});
   }
 }
