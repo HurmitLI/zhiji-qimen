@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   buildQimenChart,
   GRID_ORDER,
@@ -234,15 +241,40 @@ function RitualVisual({
   chart,
   stage,
   muted,
+  speed,
 }: {
   chart: QimenChart;
   stage: number;
   muted: boolean;
+  speed: 1 | 2;
 }) {
   const videoSrc = mediaForStage(stage, chart.zhishi.door);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playbackRate =
+    stage <= 5
+      ? speed === 2
+        ? 0.92
+        : 0.51
+      : stage <= 10
+        ? speed === 2
+          ? 1.1
+          : 0.61
+        : speed === 2
+          ? 1.78
+          : 0.94;
+
+  const syncPlaybackRate = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.defaultPlaybackRate = playbackRate;
+    videoRef.current.playbackRate = playbackRate;
+  }, [playbackRate]);
+
+  useEffect(syncPlaybackRate, [videoSrc, syncPlaybackRate]);
+
   return (
     <div className={`ritual-universe phase-${stage}`}>
       <video
+        ref={videoRef}
         key={videoSrc}
         className="ritual-media-layer"
         src={videoSrc}
@@ -250,8 +282,9 @@ function RitualVisual({
         autoPlay
         playsInline
         muted={muted}
-        loop={stage !== 11}
+        loop={false}
         preload="auto"
+        onLoadedMetadata={syncPlaybackRate}
       />
       <div className="ritual-media-shade" />
       {stage === 11 && (
@@ -330,6 +363,29 @@ export default function Home() {
     [chart],
   );
   const selectedTopic = topicMeta.find((x) => x.name === topic)!;
+
+  useEffect(() => {
+    if (!chart) return;
+    const sources = [
+      ritualMedia.ritual,
+      mediaForStage(11, chart.zhishi.door),
+    ];
+    const preloaders = [...new Set(sources)].map((src) => {
+      const video = document.createElement("video");
+      video.preload = "auto";
+      video.muted = true;
+      video.src = src;
+      video.load();
+      return video;
+    });
+    return () => {
+      preloaders.forEach((video) => {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      });
+    };
+  }, [chart]);
 
   const generateAiReading = useCallback(async (nextChart: QimenChart) => {
     setAiLoading(true);
@@ -578,7 +634,12 @@ export default function Home() {
                   : "规则成盘 · 即将交给 AI 解读"}
               </em>
             </div>
-            <RitualVisual chart={chart} stage={stage} muted={soundMuted} />
+            <RitualVisual
+              chart={chart}
+              stage={stage}
+              muted={soundMuted}
+              speed={speed}
+            />
             <div className="stage-output">
               <span>{stage < 11 ? "规则计算输出" : "最终盘面输出"}</span>
               <b>{stageOutput(chart, stage)}</b>

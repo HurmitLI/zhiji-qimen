@@ -4319,12 +4319,24 @@ body {
   height: 100%;
 }
 .ritual-media-layer {
+  --ritual-media-opacity: 0.62;
   object-fit: cover;
-  opacity: 0.62;
+  opacity: var(--ritual-media-opacity);
   filter: saturate(0.78) contrast(1.1);
+  animation: ritual-media-in 0.5s ease-out both;
   transition:
     opacity 0.7s,
     filter 0.7s;
+}
+@keyframes ritual-media-in {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: var(--ritual-media-opacity);
+    transform: scale(1);
+  }
 }
 .ritual-media-shade {
   z-index: 1;
@@ -4356,11 +4368,13 @@ body {
 .phase-8 .ritual-media-layer,
 .phase-9 .ritual-media-layer,
 .phase-10 .ritual-media-layer {
-  opacity: 0.48;
+  --ritual-media-opacity: 0.48;
+  opacity: var(--ritual-media-opacity);
   filter: saturate(0.65) contrast(1.12);
 }
 .phase-11 .ritual-media-layer {
-  opacity: 0.92;
+  --ritual-media-opacity: 0.92;
+  opacity: var(--ritual-media-opacity);
   filter: saturate(0.95) contrast(1.06);
 }
 .phase-11 .ritual-media-shade {
@@ -4749,7 +4763,8 @@ body {
 .phase-8 .ritual-media-layer,
 .phase-9 .ritual-media-layer,
 .phase-10 .ritual-media-layer {
-  opacity: 0.3;
+  --ritual-media-opacity: 0.3;
+  opacity: var(--ritual-media-opacity);
   filter: saturate(0.55) contrast(1.16) brightness(0.74);
 }
 .phase-6 .ritual-media-shade::after,
