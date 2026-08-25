@@ -13,6 +13,7 @@ const baseInstructions=`你是“一局”产品的奇门命书解读智能体�
 6. 每条解读必须能回到输入中的值使、值符、九星、八门、八神、宫位或空亡等证据。`;
 
 const clarifySchema={type:'json_schema',name:'clarified_qimen_question',schema:{type:'object',additionalProperties:false,properties:{refinedQuestion:{type:'string',minLength:6,maxLength:120},reason:{type:'string',minLength:8,maxLength:100}},required:['refinedQuestion','reason']}};
+const intakeSchema={type:'json_schema',name:'qimen_intake_turn',schema:{type:'object',additionalProperties:false,properties:{ready:{type:'boolean'},assistantMessage:{type:'string',minLength:8,maxLength:260},questionType:{type:'string',enum:['人生方向','事业发展','财富趋势','感情关系','学业成长','迁移远行']},focus:{type:'string',enum:['看未来主线','找机会来源','识别阻力','决定下一步']},refinedQuestion:{type:'string',minLength:6,maxLength:120},contextSummary:{type:'string',maxLength:180},options:{type:'array',minItems:0,maxItems:4,items:{type:'string',minLength:2,maxLength:36}}},required:['ready','assistantMessage','questionType','focus','refinedQuestion','contextSummary','options']}};
 const readingSchema={type:'json_schema',name:'qimen_destiny_reading',schema:{type:'object',additionalProperties:false,properties:{omenTitle:{type:'string',minLength:2,maxLength:12},oracle:{type:'string',minLength:20,maxLength:100},overview:{type:'string',minLength:40,maxLength:220},chapters:{type:'array',minItems:6,maxItems:6,items:{type:'object',additionalProperties:false,properties:{label:{type:'string',enum:['当下主运','人生课题','适合方向','机会来源','主要阻力','转机信号']},title:{type:'string',minLength:2,maxLength:24},body:{type:'string',minLength:35,maxLength:180},evidence:{type:'string',minLength:4,maxLength:80}},required:['label','title','body','evidence']}},actions:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:18,maxLength:100}},followupPrompts:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:6,maxLength:50}}},required:['omenTitle','oracle','overview','chapters','actions','followupPrompts']}};
 const followupSchema={type:'json_schema',name:'qimen_followup_answer',schema:{type:'object',additionalProperties:false,properties:{answer:{type:'string',minLength:40,maxLength:500}},required:['answer']}};
 
@@ -39,7 +40,7 @@ async function createResponse(input:unknown,instructions:string,format:unknown,m
 
 function validBody(body:unknown):body is AiRequest{
   if(!body||typeof body!=='object'||!('mode' in body))return false;
-  return ['clarify','reading','followup'].includes(String((body as {mode?:string}).mode));
+  return ['intake','clarify','reading','followup'].includes(String((body as {mode?:string}).mode));
 }
 
 export async function POST(request:Request){
@@ -48,6 +49,16 @@ export async function POST(request:Request){
     if(raw.length>60000)return Response.json({error:'请求内容过长'},{status:413});
     const body=JSON.parse(raw) as unknown;
     if(!validBody(body))return Response.json({error:'请求格式无效'},{status:400});
+    if(body.mode==='intake'){
+      if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请先写下想问的事情'},{status:400});
+      const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-6).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
+      const firstTurn=messages.length<=1;
+      const task=firstTurn
+        ? `任务：用户刚写下想问的事情。先理解真实纠结，只反问一个最关键的澄清问题，并给出2到4个短选项。ready必须为false。你可以先做初步分类，但不要展示分类术语，不要回答占测结果。`
+        : `任务：结合完整对话完成定题。ready必须为true，options返回空数组。将用户真正想问的事整理成一个聚焦、开放、适合奇门问事的问题，并从给定枚举中选定questionType与focus。assistantMessage要像一位克制的问事官，先复述理解，再请用户确认起局。`;
+      const result=await createResponse({messages,currentQuestion:body.question.slice(0,600)},`${baseInstructions}\n${task}\ncontextSummary只记录用户明确说过的现实背景，不得杜撰。refinedQuestion保留用户原意，不做确定性预测。`,intakeSchema,900);
+      return Response.json({mode:'intake',...result});
+    }
     if(body.mode==='clarify'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>120)return Response.json({error:'请先写下想问的问题'},{status:400});
       const result=await createResponse({topic:String(body.topic).slice(0,20),question:body.question.slice(0,120),context:String(body.context||'').slice(0,180)},`${baseInstructions}\n任务：在不改变用户原意的前提下，把问题整理成一个聚焦、开放、可以用于人生方向占测的问题。不要回答问题本身。`,clarifySchema,500);

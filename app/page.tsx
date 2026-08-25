@@ -15,7 +15,12 @@ import {
   type QimenChart,
 } from "../lib/qimen";
 import { interpretChart, type Tone } from "../lib/interpret";
-import { requestAi, type AiReading, type ChatMessage } from "../lib/ai";
+import {
+  requestAi,
+  type AiReading,
+  type ChatMessage,
+  type IntakeResult,
+} from "../lib/ai";
 import { mediaForStage, ritualMedia } from "../lib/ritual-media";
 
 const topicMeta = [
@@ -128,7 +133,13 @@ const layerNames = {
   god: "八神",
 } as const;
 type Layer = keyof typeof layerNames;
-type Screen = "landing" | "question" | "confirm" | "ritual" | "result";
+type Screen =
+  | "landing"
+  | "question"
+  | "intake"
+  | "confirm"
+  | "ritual"
+  | "result";
 type ResultTab =
   "omen" | "book" | "action" | "chart" | "ask" | "process" | "method";
 type SavedReading = { id: string; chart: QimenChart; focus: string };
@@ -159,51 +170,6 @@ function beijingNow() {
     Number(p.day),
     Number(p.hour),
     Number(p.minute),
-  );
-}
-
-function QimenEngineVisual() {
-  return (
-    <div className="engine-visual">
-      <video
-        src={ritualMedia.intro}
-        poster={ritualMedia.poster}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="metadata"
-      />
-      <div className="engine-vignette" />
-      <div className="engine-scanline" />
-      <div className="engine-hud">
-        <div className="engine-status">
-          <span>
-            <i />
-            QIMEN ENGINE · LIVE
-          </span>
-          <b>规则排盘 × AI 命书</b>
-        </div>
-        <div className="engine-coordinates">
-          <span>天时 · TIME</span>
-          <span>地利 · SPACE</span>
-          <span>人事 · INTENT</span>
-        </div>
-        <div className="engine-pipeline">
-          <span>
-            <i>01</i>校准时空
-          </span>
-          <em>→</em>
-          <span>
-            <i>12</i>九宫成盘
-          </span>
-          <em>→</em>
-          <span className="ai">
-            <i>AI</i>生成命书
-          </span>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -368,11 +334,11 @@ export default function Home() {
   const [aiReading, setAiReading] = useState<AiReading | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
-  const [clarifying, setClarifying] = useState(false);
-  const [clarifyResult, setClarifyResult] = useState<{
-    refinedQuestion: string;
-    reason: string;
-  } | null>(null);
+  const [intakeMessages, setIntakeMessages] = useState<ChatMessage[]>([]);
+  const [intakeInput, setIntakeInput] = useState("");
+  const [intakeOptions, setIntakeOptions] = useState<string[]>([]);
+  const [intakeLoading, setIntakeLoading] = useState(false);
+  const [intakeReady, setIntakeReady] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -529,32 +495,109 @@ export default function Home() {
     setScreen("result");
     void generateAiReading(item.chart);
   }
-  async function clarifyQuestion() {
-    if (question.trim().length < 2) return;
-    setClarifying(true);
+  function applyIntakeResult(result: IntakeResult) {
+    setTopic(result.questionType);
+    setFocus(result.focus);
+    setQuestion(result.refinedQuestion);
+    setContext(result.contextSummary);
+    setIntakeOptions(result.options || []);
+    setIntakeReady(result.ready);
+  }
+  async function askIntake(
+    nextQuestion: string,
+    existingMessages: ChatMessage[] = intakeMessages,
+  ) {
+    const clean = nextQuestion.trim();
+    if (clean.length < 2 || intakeLoading) return;
+    const userMessage: ChatMessage = { role: "user", content: clean };
+    const nextMessages = [...existingMessages, userMessage];
+    setIntakeMessages(nextMessages);
+    setIntakeInput("");
+    setIntakeOptions([]);
+    setIntakeLoading(true);
     setAiError("");
     try {
-      const response = await requestAi<{
-        mode: "clarify";
-        refinedQuestion: string;
-        reason: string;
-      }>({
-        mode: "clarify",
-        topic,
-        question: question.trim(),
-        context: context.trim(),
+      const response = await requestAi<{ mode: "intake" } & IntakeResult>({
+        mode: "intake",
+        messages: nextMessages,
+        question: clean,
       });
-      setClarifyResult({
-        refinedQuestion: response.refinedQuestion,
-        reason: response.reason,
-      });
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: response.assistantMessage,
+      };
+      setIntakeMessages([...nextMessages, assistantMessage]);
+      applyIntakeResult(response);
     } catch (error) {
-      setAiError(
-        error instanceof Error ? error.message : "AI问事助手暂时不可用",
-      );
+      const message =
+        error instanceof Error ? error.message : "AI 问事官暂时没有回应";
+      setAiError(message);
+      if (existingMessages.length >= 2) {
+        const words = nextMessages
+          .filter((item) => item.role === "user")
+          .map((item) => item.content)
+          .join(" ");
+        const fallbackTopic = /感情|关系|伴侣|恋爱|婚姻/.test(words)
+          ? "感情关系"
+          : /工作|事业|职业|公司|跳槽|创业/.test(words)
+            ? "事业发展"
+            : /钱|收入|财富|生意|资源/.test(words)
+              ? "财富趋势"
+              : /考试|学习|学业|读书/.test(words)
+                ? "学业成长"
+                : /城市|搬家|远行|出国|迁移/.test(words)
+                  ? "迁移远行"
+                  : "人生方向";
+        const fallbackFocus = /阻力|卡住|困难|原因/.test(words)
+          ? "识别阻力"
+          : /机会|可能|来源/.test(words)
+            ? "找机会来源"
+            : /选择|决定|怎么办|下一步/.test(words)
+              ? "决定下一步"
+              : "看未来主线";
+        const original = nextMessages.find((item) => item.role === "user")?.content || clean;
+        setTopic(fallbackTopic);
+        setFocus(fallbackFocus);
+        setQuestion(original.slice(0, 120));
+        setContext(words.slice(0, 180));
+        setIntakeReady(true);
+        setIntakeOptions([]);
+        setIntakeMessages([
+          ...nextMessages,
+          {
+            role: "assistant",
+            content: `我理解了。你真正想看清的不是一个抽象的吉凶，而是这件事接下来该如何取舍。我已把这一问归入“${fallbackTopic}”，重点看“${fallbackFocus}”。请确认后以此起局。`,
+          },
+        ]);
+      } else {
+        setIntakeOptions(["更想看未来方向", "更想做眼前选择", "更想识别主要阻力"]);
+        setIntakeMessages([
+          ...nextMessages,
+          {
+            role: "assistant",
+            content:
+              "我先从一个关键点确认：你这次更想看清未来主线、眼前选择，还是当前最大的阻力？",
+          },
+        ]);
+      }
     } finally {
-      setClarifying(false);
+      setIntakeLoading(false);
     }
+  }
+  function startIntake(e: FormEvent) {
+    e.preventDefault();
+    if (question.trim().length < 2) return;
+    setIntakeMessages([]);
+    setIntakeOptions([]);
+    setIntakeReady(false);
+    setScreen("intake");
+    void askIntake(question.trim(), []);
+  }
+  function submitIntakeReply(e?: FormEvent, option?: string) {
+    e?.preventDefault();
+    const value = (option || intakeInput).trim();
+    if (!value) return;
+    void askIntake(value);
   }
   async function submitFollowup(e?: FormEvent, quickQuestion?: string) {
     e?.preventDefault();
@@ -1372,9 +1415,9 @@ export default function Home() {
 
   if (screen === "question")
     return (
-      <main className="app-shell wizard-screen">
+      <main className="app-shell intake-entry-screen">
         <div className="noise" />
-        <header className="topbar">
+        <header className="topbar oracle-topbar">
           <div className="brand">
             <i>壹</i>
             <span>
@@ -1382,146 +1425,116 @@ export default function Home() {
               <small>QIMEN × DEEPSEEK</small>
             </span>
           </div>
-          <div className="flow-progress">
-            <i className="active" />
-            <i />
-            <span>01 / 02 · 建立问事</span>
-          </div>
           <button className="ghost-button" onClick={() => setScreen("landing")}>
             返回首页
           </button>
         </header>
-        <section className="wizard-layout">
-          <div className="wizard-intro">
-            <span>第二页 · 起念问事</span>
-            <h1>
-              先把这一刻，
-              <br />
-              真正想问的事说清楚。
-            </h1>
-            <p>
-              同一时间只有一张盘。问题不会改变盘面，只决定命书先读哪一条人生主线。
-            </p>
-            <div className="ai-role-note">
-              <i>AI</i>
-              <span>
-                <b>DeepSeek AI 问事官</b>
-                <small>只帮你把问题问清楚，不参与排盘。</small>
-              </span>
-            </div>
+        <section className="intake-entry">
+          <div className="intake-entry-copy">
+            <span>AI 问事官 · 第一步</span>
+            <h1>只管说你想算的事。</h1>
+            <p>不用先选分类，也不用研究奇门术语。AI 会听懂你的处境，再用一两个问题帮你把这一局定清楚。</p>
           </div>
-          <form
-            className="question-console wizard-panel"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setScreen("confirm");
-            }}
-          >
-            <div className="console-heading">
-              <span>选择人生议题</span>
-              <h2>你想问人生的哪一面？</h2>
-            </div>
-            <fieldset className="topic-field">
-              <legend>选择议题</legend>
-              <div>
-                {topicMeta.map((item) => (
-                  <button
-                    type="button"
-                    key={item.name}
-                    className={topic === item.name ? "selected" : ""}
-                    onClick={() => setTopic(item.name)}
-                  >
-                    <i>{item.glyph}</i>
-                    <span>
-                      <b>{item.name}</b>
-                      <small>{item.hint}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <div className="wizard-inputs">
-              <label className="textarea-label">
-                <span>此刻真正关心的一件事</span>
-                <textarea
-                  value={question}
-                  onChange={(e) => {
-                    setQuestion(e.target.value);
-                    setClarifyResult(null);
-                  }}
-                  minLength={6}
-                  maxLength={120}
-                  required
-                />
-                <small>{question.length}/120</small>
-              </label>
-              <label className="textarea-label context">
-                <span>
-                  现实背景 <i>选填</i>
-                </span>
-                <textarea
-                  placeholder="例如：已经有两个方案，但资源有限……"
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                  maxLength={180}
-                />
-                <small>{context.length}/180</small>
-              </label>
-            </div>
-            <div className="ai-question-helper">
-              <button
-                type="button"
-                disabled={clarifying || question.trim().length < 2}
-                onClick={() => void clarifyQuestion()}
-              >
-                <i>AI</i>
-                <span>
-                  <b>
-                    {clarifying
-                      ? "正在凝练问题…"
-                      : "DeepSeek AI 帮我把问题问清楚"}
-                  </b>
-                  <small>保留原意，把模糊念头整理成适合问事的一句话</small>
-                </span>
-                <em>→</em>
+          <form className="intake-single-box" onSubmit={startIntake}>
+            <textarea
+              autoFocus
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              minLength={2}
+              maxLength={600}
+              placeholder="比如：我现在的工作越来越没有意义，但离开又担心走错，我该怎么看接下来的方向？"
+              aria-label="写下想算的事情"
+            />
+            <div>
+              <small>{question.length}/600 · AI 会继续问你</small>
+              <button disabled={question.trim().length < 2}>
+                交给 AI 梳理 <i>→</i>
               </button>
-              {clarifyResult && (
-                <div className="clarify-card">
-                  <small>AI 问事助手建议</small>
-                  <blockquote>“{clarifyResult.refinedQuestion}”</blockquote>
-                  <p>{clarifyResult.reason}</p>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuestion(clarifyResult.refinedQuestion);
-                        setClarifyResult(null);
-                      }}
-                    >
-                      采用这个问题
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setClarifyResult(null)}
-                    >
-                      保留原问题
-                    </button>
-                  </div>
-                </div>
-              )}
-              {aiError && <p className="ai-helper-error">{aiError}</p>}
-            </div>
-            <div className="wizard-actions">
-              <button
-                type="button"
-                className="back"
-                onClick={() => setScreen("landing")}
-              >
-                ← 上一页
-              </button>
-              <button type="submit">确认问题，进入封题 →</button>
             </div>
           </form>
+          <div className="intake-examples">
+            <span>不知道怎么说？试试</span>
+            {starterPrompts.slice(0, 3).map((item) => (
+              <button key={item.question} onClick={() => setQuestion(item.question)}>
+                {item.question}
+              </button>
+            ))}
+          </div>
+        </section>
+      </main>
+    );
+
+  if (screen === "intake")
+    return (
+      <main className="app-shell intake-chat-screen">
+        <div className="noise" />
+        <header className="topbar oracle-topbar">
+          <div className="brand">
+            <i>壹</i>
+            <span>
+              <b>一局</b>
+              <small>AI 问事官</small>
+            </span>
+          </div>
+          <div className="intake-status"><i /> AI 正在为这一局定题</div>
+          <button className="ghost-button" onClick={() => setScreen("question")}>重新描述</button>
+        </header>
+        <section className="intake-chat-layout">
+          <aside>
+            <span>AI 定题</span>
+            <h1>先听懂你，<br />再开始算。</h1>
+            <p>AI 只负责理解问题和选择取用方向，不参与排盘，也不会提前给出结果。</p>
+            <ol>
+              <li className="done">说出困惑</li>
+              <li className={intakeReady ? "done" : "active"}>追问关键点</li>
+              <li className={intakeReady ? "active" : ""}>确认这一问</li>
+            </ol>
+          </aside>
+          <div className="intake-conversation">
+            <div className="intake-chat-stream" aria-live="polite">
+              <div className="intake-ai-intro">
+                <i>AI</i>
+                <p>你不需要先判断这属于事业、感情还是人生方向。把真实处境告诉我，我会替你完成分类。</p>
+              </div>
+              {intakeMessages.map((message, index) => (
+                <div className={`intake-message ${message.role}`} key={`${message.role}-${index}`}>
+                  <small>{message.role === "user" ? "你" : "AI 问事官"}</small>
+                  <p>{message.content}</p>
+                </div>
+              ))}
+              {intakeLoading && (
+                <div className="intake-thinking"><i /><span>正在理解你真正想问的事…</span></div>
+              )}
+            </div>
+            {intakeOptions.length > 0 && !intakeLoading && (
+              <div className="intake-choice-row">
+                {intakeOptions.map((option) => (
+                  <button key={option} onClick={() => submitIntakeReply(undefined, option)}>{option}</button>
+                ))}
+              </div>
+            )}
+            {intakeReady ? (
+              <div className="intake-ready-card">
+                <span>AI 已完成定题</span>
+                <blockquote>“{question}”</blockquote>
+                <div>
+                  <b>{topic}</b><i>·</i><b>{focus}</b>
+                </div>
+                <button onClick={() => setScreen("confirm")}>确认这一问，准备起局 →</button>
+              </div>
+            ) : (
+              <form className="intake-reply-box" onSubmit={submitIntakeReply}>
+                <textarea
+                  value={intakeInput}
+                  onChange={(e) => setIntakeInput(e.target.value)}
+                  maxLength={600}
+                  placeholder="也可以直接补充你的真实想法……"
+                />
+                <button disabled={intakeLoading || intakeInput.trim().length < 2}>发送 <i>↑</i></button>
+              </form>
+            )}
+            {aiError && <small className="intake-error">AI 刚才短暂失去响应，你仍可以选择一个方向继续。</small>}
+          </div>
         </section>
       </main>
     );
@@ -1541,11 +1554,11 @@ export default function Home() {
           <div className="flow-progress">
             <i className="done" />
             <i className="active" />
-            <span>02 / 02 · 确认封题</span>
+            <span>03 / 03 · 确认封题</span>
           </div>
           <button
             className="ghost-button"
-            onClick={() => setScreen("question")}
+            onClick={() => setScreen("intake")}
           >
             修改问题
           </button>
@@ -1576,19 +1589,11 @@ export default function Home() {
               <blockquote>“{question}”</blockquote>
               {context && <p>{context}</p>}
             </div>
-            <fieldset className="focus-field">
-              <legend>这次最想看清</legend>
-              {focusOptions.map((item) => (
-                <button
-                  type="button"
-                  key={item}
-                  className={focus === item ? "selected" : ""}
-                  onClick={() => setFocus(item)}
-                >
-                  {item}
-                </button>
-              ))}
-            </fieldset>
+            <div className="ai-selection-summary">
+              <span>AI 问事官已完成取用选择</span>
+              <div><b>{topic}</b><i>·</i><b>{focus}</b></div>
+              <small>如需改变所问方向，请返回对话重新说明；这里不再让你手动理解分类。</small>
+            </div>
             <div className="time-fields confirm-time">
               <label>
                 <span>起局时间</span>
@@ -1641,9 +1646,9 @@ export default function Home() {
               <button
                 type="button"
                 className="back"
-                onClick={() => setScreen("question")}
+                onClick={() => setScreen("intake")}
               >
-                ← 修改问题
+                ← 返回对话
               </button>
               <button type="submit">封存此念 · 开始起局 →</button>
             </div>
@@ -1664,8 +1669,9 @@ export default function Home() {
           </span>
         </div>
         <nav className="oracle-nav" aria-label="首页导航">
-          <button onClick={() => setScreen("question")}>AI 问事</button>
-          <button onClick={() => setScreen("question")}>十二步起局</button>
+          <a href="#why-yiju">为什么是一局</a>
+          <a href="#ai-showcase">AI 如何工作</a>
+          <a href="#qimen-system">奇门体系</a>
           {history.length > 0 && (
             <button onClick={() => setHistoryOpen(true)}>最近命书</button>
           )}
@@ -1690,62 +1696,20 @@ export default function Home() {
             观时定局，<em>见势知行</em>
           </h1>
           <p className="oracle-subtitle">
-            把此刻真正困住你的事写下来。先看十二步奇门如何成局，
-            再由 DeepSeek 读懂你的处境，把盘面翻译成下一步行动。
+            不必先懂奇门，也不必先选分类。说出此刻真正困住你的事，
+            AI 会先听懂你，再用一张完整奇门局把问题照亮。
           </p>
-          <form
-            className="oracle-ask"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setScreen("question");
-            }}
-          >
-            <div className="oracle-modes" role="group" aria-label="选择问事方向">
-              {starterPrompts.map((item) => (
-                <button
-                  type="button"
-                  key={item.label}
-                  className={
-                    topic === item.label ||
-                    (item.label === "事业选择" && topic === "事业发展")
-                      ? "active"
-                      : ""
-                  }
-                  onClick={() => {
-                    setTopic(
-                      item.label === "事业选择" ? "事业发展" : item.label,
-                    );
-                    setQuestion(item.question);
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <label>
-              <textarea
-                value={question}
-                maxLength={120}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="心有所问，请写下一件真正想看清的事……"
-                aria-label="写下想问的事"
-              />
-              <button type="submit" disabled={question.trim().length < 6}>
-                起一局 <i>→</i>
-              </button>
-            </label>
-            <small>一事一问 · 规则排盘不随机 · AI 只解读、不改盘</small>
-          </form>
+          <button className="oracle-primary-cta" onClick={() => setScreen("question")}>
+            把心事交给 AI <i>→</i>
+          </button>
+          <small className="oracle-hero-note">无需注册 · 一事一问 · AI 不参与改盘</small>
           <div className="oracle-prompts">
-            <span>你也可以这样问</span>
+            <span>他们常从这些问题开始</span>
             <div>
               {starterPrompts.map((item) => (
                 <button
                   key={item.question}
                   onClick={() => {
-                    setTopic(
-                      item.label === "事业选择" ? "事业发展" : item.label,
-                    );
                     setQuestion(item.question);
                     setScreen("question");
                   }}
@@ -1756,57 +1720,78 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="oracle-preview">
-          <header>
-            <span>
-              <i /> 起局预演
-            </span>
-            <b>十二步排盘过程全程可见</b>
-          </header>
-          <QimenEngineVisual />
-          <div className="oracle-ai-flow">
-            <span>
-              <i>01</i>
-              <b>AI 理解问题</b>
-              <small>识别议题与现实背景</small>
-            </span>
-            <em>→</em>
-            <span>
-              <i>12</i>
-              <b>规则固定命盘</b>
-              <small>节令、四柱、九宫成局</small>
-            </span>
-            <em>→</em>
-            <span className="ai">
-              <i>AI</i>
-              <b>生成个性命书</b>
-              <small>断语、行动与同局追问</small>
-            </span>
+      </section>
+      <section className="home-why" id="why-yiju">
+        <div className="home-section-heading">
+          <span>为什么选择一局</span>
+          <h2>不是把古书搬上网页，<br /><em>而是让 AI 真正听懂你。</em></h2>
+          <p>克制、清楚、可追溯。让奇门回到一个问题、一张盘和一条可以带回现实的线索。</p>
+        </div>
+        <div className="home-feature-list">
+          {[
+            ["壹", "终于有 AI 先听懂你的纠结", "你只需说出真实处境。AI 会继续追问关键点，替你判断这是事业、关系、迁移还是人生方向。"],
+            ["贰", "一个问题，只起一张真实时间盘", "节令、四柱、阴阳遁、局数、九宫与值使都由规则计算，AI 不能为了迎合答案而修改。"],
+            ["叁", "从封题到成局，十二步全部可见", "不是播放一段与结果无关的视频。每一步演出都对应同一张盘的真实计算输出。"],
+            ["肆", "命书不是终点，还能沿着同一局追问", "AI 会保留你的原问题、盘面和命书上下文，继续回答阻力、机会与下一步怎么验证。"],
+            ["伍", "玄而不吓人，答案始终留在现实里", "不做确定性预言，不拿生死、疾病、投资涨跌制造焦虑。每个提示都落到可撤回、可验证的行动。"],
+          ].map(([number, title, body], index) => (
+            <article key={number} className={index % 2 ? "reverse" : ""}>
+              <i>{number}</i>
+              <div><small>0{index + 1}</small><h3>{title}</h3><p>{body}</p></div>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="home-ai-showcase" id="ai-showcase">
+        <div className="home-section-heading">
+          <span>AI 驱动</span>
+          <h2>它不给你一句判词，<br /><em>而是陪你把问题看清。</em></h2>
+          <p>从一段说不清的困惑，到可以起局的一问，再到盘面依据与现实行动。</p>
+        </div>
+        <div className="ai-demo-card">
+          <div className="ai-demo-question">
+            <small>用户写下</small>
+            <blockquote>“工作越来越没有意义，但离开又怕走错，我到底该怎么办？”</blockquote>
+          </div>
+          <div className="ai-demo-steps">
+            <article><i>AI</i><span><small>理解处境</small><b>你更想确认的是去留，还是转向后的具体方向？</b></span></article>
+            <article><i>局</i><span><small>规则成盘</small><b>以此刻时间完成十二步排盘，锁定议题宫、主体宫与行动宫</b></span></article>
+            <article><i>解</i><span><small>个性命书</small><b>给出主运、机会、阻力、转机与三条现实核验动作</b></span></article>
+          </div>
+          <div className="ai-demo-answer">
+            <span>AI 命书摘要</span>
+            <h3>先结束无效消耗，<br />再验证新方向是否值得投入。</h3>
+            <p>答案会同时说明盘面依据与现实核验方式，而不是只留下一句模糊的吉凶。</p>
+            <button onClick={() => setScreen("question")}>开始问我的事 →</button>
           </div>
         </div>
       </section>
-      <section className="oracle-capabilities">
-        <article>
-          <i>壹</i>
-          <span>
-            <b>它先听懂你</b>
-            <small>模糊念头可交给 AI 凝练成一个适合起局的问题。</small>
-          </span>
-        </article>
-        <article>
-          <i>贰</i>
-          <span>
-            <b>过程不是黑箱</b>
-            <small>封题到成局十二步演算逐段展示，结果与动画一致。</small>
-          </span>
-        </article>
-        <article>
-          <i>叁</i>
-          <span>
-            <b>答案可以继续问</b>
-            <small>命书生成后，AI 会沿用同一张盘回答你的后续疑问。</small>
-          </span>
-        </article>
+      <section className="home-qimen-system" id="qimen-system">
+        <div className="home-section-heading compact">
+          <span>奇门体系</span>
+          <h2>天地人神，<em>汇于一局。</em></h2>
+          <p>一局不混用塔罗、星盘和八字。只把奇门这一套规则做完整、讲清楚。</p>
+        </div>
+        <div className="qimen-system-grid">
+          <article><i>天</i><h3>天时</h3><p>节令、四柱、阴阳遁与局数，固定这一刻的时空底盘。</p></article>
+          <article><i>地</i><h3>九宫</h3><p>三奇六仪、九星、八门与八神依规则旋布，各有落宫。</p></article>
+          <article><i>人</i><h3>所问</h3><p>AI 从对话中判断取用方向，但同一时间不会因此改成另一张盘。</p></article>
+          <article><i>神</i><h3>命书</h3><p>把传统象意翻译成与你处境相关、可以继续追问的现代语言。</p></article>
+        </div>
+      </section>
+      <section className="home-trust">
+        <div><span>你的问题，只属于这一局</span><h2>不需要表演虔诚，<br />也不需要交出隐私。</h2></div>
+        <ul>
+          <li><b>本地历史</b><small>最近命书只保存在当前设备，随时可以清除。</small></li>
+          <li><b>规则与 AI 分工</b><small>规则负责排盘，AI 负责理解与表达，边界始终可见。</small></li>
+          <li><b>不制造依赖</b><small>重大决定仍需结合现实信息与专业判断。</small></li>
+        </ul>
+      </section>
+      <section className="home-final-cta">
+        <span>下一步，从这里开始</span>
+        <h2>一个问题的距离，<br /><em>看见更多可能。</em></h2>
+        <button onClick={() => setScreen("question")}>开始免费问一局 →</button>
+        <small>传统文化体验 · 不提供确定性未来</small>
       </section>
       <footer className="landing-footer">
         <span>一局 · 奇门问事</span>
