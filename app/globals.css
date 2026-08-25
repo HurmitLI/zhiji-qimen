@@ -6414,6 +6414,26 @@ body {
   color: #6f6f6a;
   font: 10px var(--sans);
 }
+.intake-ready-card .intake-ready-actions {
+  margin: 18px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.intake-ready-card .intake-ready-actions button {
+  padding: 13px 19px;
+  border: 0;
+  border-radius: 15px;
+  color: #fff;
+  background: #1d1d1c;
+  cursor: pointer;
+  font: 11px var(--sans);
+}
+.intake-ready-card .intake-ready-actions button.secondary {
+  color: #73736e;
+  border: 1px solid rgba(20, 20, 20, 0.09);
+  background: rgba(255, 255, 255, 0.72);
+}
 .intake-ready-card > div i {
   margin: 0 8px;
   color: #aaa;

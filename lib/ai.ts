@@ -13,6 +13,11 @@ export type IntakeResult={
   options:string[];
 };
 
+export function intakeResponseStillAsking(result:Pick<IntakeResult,'assistantMessage'|'options'>){
+  const message=String(result.assistantMessage||'').trim();
+  return (Array.isArray(result.options)&&result.options.length>0)||/[？?]/.test(message);
+}
+
 export type AiRequest=
   | {mode:'intake';messages:ChatMessage[];question:string}
   | {mode:'clarify';topic:string;question:string;context:string}

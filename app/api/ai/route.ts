@@ -1,4 +1,4 @@
-import type { AiRequest } from '../../../lib/ai';
+import { intakeResponseStillAsking, type AiRequest, type IntakeResult } from '../../../lib/ai';
 
 const DEEPSEEK_URL='https://api.deepseek.com/responses';
 const MODEL='deepseek-v4-flash';
@@ -52,12 +52,16 @@ export async function POST(request:Request){
     if(body.mode==='intake'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请先写下想问的事情'},{status:400});
       const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-6).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
-      const firstTurn=messages.length<=1;
+      const firstTurn=messages.filter(item=>item.role==='user').length<=1;
       const task=firstTurn
         ? `任务：用户刚写下想问的事情。先理解真实纠结，只反问一个最关键的澄清问题，并给出2到4个短选项。ready必须为false。你可以先做初步分类，但不要展示分类术语，不要回答占测结果。`
-        : `任务：结合完整对话完成定题。ready必须为true，options返回空数组。将用户真正想问的事整理成一个聚焦、开放、适合奇门问事的问题，并从给定枚举中选定questionType与focus。assistantMessage要像一位克制的问事官，先复述理解，再请用户确认起局。`;
-      const result=await createResponse({messages,currentQuestion:body.question.slice(0,600)},`${baseInstructions}\n${task}\ncontextSummary只记录用户明确说过的现实背景，不得杜撰。refinedQuestion保留用户原意，不做确定性预测。`,intakeSchema,900);
-      return Response.json({mode:'intake',...result});
+        : `任务：结合完整对话判断信息是否已经足够定题。不要因为用户已经回答过一次就强制定题。
+- 如果仍需确认任何信息：ready必须为false；assistantMessage只问一个新的、具体的关键问题；options给2到4个与该问题直接对应的短答案。不要重复上一轮的问题。
+- 只有当主题、现实处境与本次最想看清的方向都已经明确时：ready才为true；assistantMessage必须是陈述句，只复述理解并邀请用户确认，严禁出现问号、反问或新的信息请求；options必须为空数组。
+- 如果用户回答“没有”“不知道”“都不是”或仍然模糊，不得直接ready=true，应换一个更容易回答的角度继续问。`;
+      const result=await createResponse({messages,currentQuestion:body.question.slice(0,600)},`${baseInstructions}\n${task}\ncontextSummary只记录用户明确说过的现实背景，不得杜撰。refinedQuestion保留用户原意，不做确定性预测。`,intakeSchema,900) as unknown as IntakeResult;
+      const ready=Boolean(result.ready)&&!intakeResponseStillAsking(result);
+      return Response.json({mode:'intake',...result,ready});
     }
     if(body.mode==='clarify'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>120)return Response.json({error:'请先写下想问的问题'},{status:400});

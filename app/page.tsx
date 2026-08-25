@@ -17,6 +17,7 @@ import {
 import { interpretChart, type Tone } from "../lib/interpret";
 import {
   requestAi,
+  intakeResponseStillAsking,
   type AiReading,
   type ChatMessage,
   type IntakeResult,
@@ -522,12 +523,16 @@ export default function Home() {
         messages: nextMessages,
         question: clean,
       });
+      const normalizedResponse = {
+        ...response,
+        ready: response.ready && !intakeResponseStillAsking(response),
+      };
       const assistantMessage: ChatMessage = {
         role: "assistant",
-        content: response.assistantMessage,
+        content: normalizedResponse.assistantMessage,
       };
       setIntakeMessages([...nextMessages, assistantMessage]);
-      applyIntakeResult(response);
+      applyIntakeResult(normalizedResponse);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "AI 问事官暂时没有回应";
@@ -1520,7 +1525,19 @@ export default function Home() {
                 <div>
                   <b>{topic}</b><i>·</i><b>{focus}</b>
                 </div>
-                <button onClick={() => setScreen("confirm")}>确认这一问，准备起局 →</button>
+                <div className="intake-ready-actions">
+                  <button onClick={() => setScreen("confirm")}>确认这一问，准备起局 →</button>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setIntakeReady(false);
+                      setIntakeOptions([]);
+                      setAiError("");
+                    }}
+                  >
+                    我还想补充
+                  </button>
+                </div>
               </div>
             ) : (
               <form className="intake-reply-box" onSubmit={submitIntakeReply}>
