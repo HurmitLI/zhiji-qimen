@@ -4777,6 +4777,38 @@ body {
   font-style: normal;
   letter-spacing: 0.08em;
 }
+
+/* Keep the ritual footage unobstructed from sealing through the Eight Spirits. */
+.ritual-screen:is(
+    .stage-0,
+    .stage-1,
+    .stage-2,
+    .stage-3,
+    .stage-4,
+    .stage-5,
+    .stage-6,
+    .stage-7,
+    .stage-8,
+    .stage-9
+  )
+  .stage-heading,
+.ritual-screen:is(
+    .stage-0,
+    .stage-1,
+    .stage-2,
+    .stage-3,
+    .stage-4,
+    .stage-5,
+    .stage-6,
+    .stage-7,
+    .stage-8,
+    .stage-9
+  )
+  .stage-output {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
 .phase-6 .ritual-media-layer,
 .phase-7 .ritual-media-layer,
 .phase-8 .ritual-media-layer,
