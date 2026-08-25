@@ -191,6 +191,8 @@ function PalaceMatrix({
   layer = "all",
   selected,
   onSelect,
+  primary,
+  markers,
   mode = "result",
 }: {
   chart: QimenChart;
@@ -198,6 +200,8 @@ function PalaceMatrix({
   layer?: Layer;
   selected?: number;
   onSelect?: (n: number) => void;
+  primary?: number;
+  markers?: Partial<Record<number, string[]>>;
   mode?: "ritual" | "result";
 }) {
   return (
@@ -212,7 +216,7 @@ function PalaceMatrix({
             type="button"
             key={number}
             onClick={() => onSelect?.(number)}
-            className={`matrix-cell ${active ? "active" : ""} ${p.isCenter ? "center" : ""}`}
+            className={`matrix-cell ${active ? "active" : ""} ${primary === number ? "primary" : ""} ${p.isCenter ? "center" : ""}`}
             style={{ "--i": index } as React.CSSProperties}
             aria-label={`${p.direction}${p.name}`}
           >
@@ -224,6 +228,9 @@ function PalaceMatrix({
             <b className="cell-door">{p.door || "中宫"}</b>
             <span className="cell-star">{p.star}</span>
             <span className="cell-god">{p.god || "寄坤"}</span>
+            {markers?.[number]?.length ? (
+              <span className="cell-role">{markers[number]?.join(" · ")}</span>
+            ) : null}
             {chart.kongwangPalaces.includes(number) && <mark>空</mark>}
             <i className="cell-glow" />
           </button>
@@ -861,6 +868,14 @@ export default function Home() {
       "我现在最大的阻力是什么？",
       "未来七天先验证什么？",
     ];
+    const palaceMarkers: Partial<Record<number, string[]>> = {};
+    const addPalaceMarker = (palace: number, label: string) => {
+      palaceMarkers[palace] = [...(palaceMarkers[palace] || []), label];
+    };
+    addPalaceMarker(interpretation.issuePalace, interpretation.mainLabel);
+    addPalaceMarker(interpretation.selfPalace, "主体");
+    addPalaceMarker(interpretation.matterPalace, "事情");
+    addPalaceMarker(interpretation.environmentPalace, "时段");
     return (
       <main
         className={`app-shell result-screen paged-result fortune-${interpretation.tone}`}
@@ -1156,9 +1171,9 @@ export default function Home() {
           <section className="result-view chart-view">
             <div className="chart-toolbar">
               <div>
-                <span>九宫盘面依据</span>
-                <h2>九宫探索台</h2>
-                <p>切换图层或点击宫位，看清每条线索来自哪里。</p>
+                <span>本局盘面依据</span>
+                <h2>九宫全盘</h2>
+                <p>每一宫都是命书的原始依据。点击宫位，可查看天、地、星、门、神的对应关系。</p>
               </div>
               <div className="layer-switch">
                 {(Object.keys(layerNames) as Layer[]).map((key) => (
@@ -1174,19 +1189,22 @@ export default function Home() {
             </div>
             <div className="explorer-layout">
               <div className="matrix-stage">
-                <div className="celestial-ring ring-a" />
-                <div className="celestial-ring ring-b" />
                 <PalaceMatrix
                   chart={chart}
                   layer={layer}
                   selected={selectedPalace || interpretation.issuePalace}
                   onSelect={setSelectedPalace}
+                  primary={interpretation.issuePalace}
+                  markers={palaceMarkers}
                 />
               </div>
               <aside className="evidence-panel">
                 <p>
                   {selected.direction} · {selected.name}
                 </p>
+                <em className="selected-role">
+                  {palaceMarkers[selected.palace]?.join(" · ") || "全盘辅助宫位"}
+                </em>
                 <h3>
                   {selected.trigram}宫 <i>五行{selected.element}</i>
                 </h3>
