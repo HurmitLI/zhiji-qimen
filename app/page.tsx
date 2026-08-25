@@ -307,7 +307,7 @@ function RitualVisual({
 function stageOutput(chart: QimenChart, index: number) {
   const outputs = [
     `“${chart.input.question}”`,
-    `${chart.calendar.solar} · ${chart.input.city} · 北京时间`,
+    `${chart.calendar.solar} · ${chart.input.city === "未记录" ? "" : `${chart.input.city} · `}北京时间`,
     `${chart.calendar.activeJie}已入节 · 下节${chart.calendar.nextJie}`,
     `${chart.calendar.year}年 · ${chart.calendar.month}月 · ${chart.calendar.day}日 · ${chart.calendar.time}时`,
     `${chart.calendar.activeJie} → ${chart.dunType}`,
@@ -334,7 +334,7 @@ export default function Home() {
     "未来一段时间，我的人生方向更适合继续、转向还是等待？",
   );
   const [context, setContext] = useState("");
-  const [city, setCity] = useState("上海");
+  const [city, setCity] = useState("");
   const [timeMode, setTimeMode] = useState<"now" | "custom">("now");
   const [customTime, setCustomTime] = useState(() => toLocalInput(new Date()));
   const [chart, setChart] = useState<QimenChart | null>(null);
@@ -498,7 +498,7 @@ export default function Home() {
       date,
       questionType: topic,
       question: question.trim(),
-      city: city.trim() || "未填写",
+      city: city.trim() || "未记录",
       focus,
       context: context.trim(),
     });
@@ -1601,41 +1601,56 @@ export default function Home() {
               <div><b>{topic}</b><i>·</i><b>{focus}</b></div>
               <small>如需改变所问方向，请返回对话重新说明；这里不再让你手动理解分类。</small>
             </div>
-            <div className="time-fields confirm-time">
-              <label>
-                <span>起局时间</span>
-                <select
-                  value={timeMode}
-                  onChange={(e) =>
-                    setTimeMode(e.target.value as "now" | "custom")
+            <div className="confirm-time-simple">
+              <div>
+                <span>起局时刻</span>
+                <b>
+                  {timeMode === "now"
+                    ? "此刻（北京时间）"
+                    : `${customTime.replace("T", " ")}（北京时间）`}
+                </b>
+                <small>默认用你点击“开始起局”时的当前时间成盘。</small>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (timeMode === "now") {
+                    setCustomTime(toLocalInput(beijingNow()));
+                    setTimeMode("custom");
+                  } else {
+                    setTimeMode("now");
                   }
-                >
-                  <option value="now">以北京时间此刻起局</option>
-                  <option value="custom">指定北京时间</option>
-                </select>
+                }}
+              >
+                {timeMode === "now" ? "修改" : "恢复此刻"}
+              </button>
+            </div>
+            {timeMode === "custom" && (
+              <label className="custom-time-field">
+                <span>指定北京时间</span>
+                <input
+                  type="datetime-local"
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                  required
+                />
               </label>
-              {timeMode === "custom" && (
-                <label>
-                  <span>指定时间</span>
-                  <input
-                    type="datetime-local"
-                    value={customTime}
-                    onChange={(e) => setCustomTime(e.target.value)}
-                    required
-                  />
-                </label>
-              )}
+            )}
+            <details className="confirm-advanced">
+              <summary>
+                <span>更多设置</span>
+                <small>所在城市可选，仅用于命书记载</small>
+              </summary>
               <label>
-                <span>
-                  城市 <i>当前仅作记录</i>
-                </span>
+                <span>所在城市（可选）</span>
                 <input
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   maxLength={20}
+                  placeholder="例如：上海；不填写也可以起局"
                 />
               </label>
-            </div>
+            </details>
             <div className="use-rule">
               <i>{selectedTopic.glyph}</i>
               <span>
