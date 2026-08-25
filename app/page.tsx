@@ -790,6 +790,11 @@ export default function Home() {
       selectedPalace || interpretation.issuePalace,
     );
     const readingTitle = aiReading?.omenTitle || interpretation.omenTitle;
+    const displayReadingTitle = readingTitle.endsWith(interpretation.toneLabel)
+      ? readingTitle
+          .slice(0, -interpretation.toneLabel.length)
+          .replace(/[·・\s-]+$/, "")
+      : readingTitle;
     const readingOracle = aiReading?.oracle || interpretation.oracle;
     const readingActions = aiReading?.actions || interpretation.actions;
     const readingChapters =
@@ -845,7 +850,7 @@ export default function Home() {
               {chart.calendar.solar}
             </p>
             <h1>
-              {readingTitle} <i>·</i> {interpretation.toneLabel}
+              {displayReadingTitle} <i>·</i> {interpretation.toneLabel}
             </h1>
             <blockquote>“{chart.input.question}”</blockquote>
             {chart.input.context && (
@@ -1198,7 +1203,8 @@ export default function Home() {
               <span>同局追问 · DeepSeek AI 问命官</span>
               <h2>继续问这一局</h2>
               <p>
-                DeepSeek AI 会沿用刚才的时间盘、你的问题和命书回答，不会重新随机起盘。
+                DeepSeek AI
+                会沿用刚才的时间盘、你的问题和命书回答，不会重新随机起盘。
               </p>
             </div>
             <div className="ask-shell">
@@ -1378,7 +1384,10 @@ export default function Home() {
                   <small>凝练问题、个性命书、行动建议与同局追问</small>
                 </span>
               </div>
-              <p>AI 不能修改盘面，也不代表科学预测，只把传统象意转成与你问题相关、可以现实核验的语言。</p>
+              <p>
+                AI
+                不能修改盘面，也不代表科学预测，只把传统象意转成与你问题相关、可以现实核验的语言。
+              </p>
             </div>
             <div className="boundary-panel">
               <b>不提供</b>
@@ -1514,7 +1523,11 @@ export default function Home() {
               >
                 <i>AI</i>
                 <span>
-                  <b>{clarifying ? "正在凝练问题…" : "DeepSeek AI 帮我把问题问清楚"}</b>
+                  <b>
+                    {clarifying
+                      ? "正在凝练问题…"
+                      : "DeepSeek AI 帮我把问题问清楚"}
+                  </b>
                   <small>保留原意，把模糊念头整理成适合问事的一句话</small>
                 </span>
                 <em>→</em>
