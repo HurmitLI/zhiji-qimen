@@ -27,6 +27,24 @@ const topicMeta = [
   { name: "迁移远行", glyph: "行", hint: "城市、远行、变化与新环境" },
 ];
 const focusOptions = ["看未来主线", "找机会来源", "识别阻力", "决定下一步"];
+const starterPrompts = [
+  {
+    label: "人生方向",
+    question: "未来一段时间，我更适合继续、转向还是等待？",
+  },
+  {
+    label: "事业选择",
+    question: "面对眼前的事业选择，我应该稳住积累还是主动突破？",
+  },
+  {
+    label: "感情关系",
+    question: "这段关系接下来更适合靠近、沟通还是暂时留白？",
+  },
+  {
+    label: "迁移远行",
+    question: "近期是否适合换一个城市或环境重新开始？",
+  },
+] as const;
 const stages = [
   {
     name: "封题",
@@ -1345,7 +1363,7 @@ export default function Home() {
           </section>
         )}
         <footer className="result-footer">
-          <span>一局 · 人生岔路口占测</span>
+          <span>一局 · 奇门 AI 问事</span>
           <b>传统文化体验 · 重大决定仍需结合现实信息</b>
         </footer>
       </main>
@@ -1361,7 +1379,7 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>LIFE CROSSROADS</small>
+              <small>QIMEN × DEEPSEEK</small>
             </span>
           </div>
           <div className="flow-progress">
@@ -1517,7 +1535,7 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>LIFE CROSSROADS</small>
+              <small>QIMEN × DEEPSEEK</small>
             </span>
           </div>
           <div className="flow-progress">
@@ -1637,77 +1655,162 @@ export default function Home() {
   return (
     <main className="app-shell landing-screen">
       <div className="noise" />
-      <header className="topbar">
+      <header className="topbar oracle-topbar">
         <div className="brand">
           <i>壹</i>
           <span>
             <b>一局</b>
-            <small>LIFE CROSSROADS</small>
+            <small>QIMEN × DEEPSEEK</small>
           </span>
         </div>
-        <div className="header-actions">
-          <span>传统奇门 · AI 人生问事</span>
+        <nav className="oracle-nav" aria-label="首页导航">
+          <button onClick={() => setScreen("question")}>AI 问事</button>
+          <button onClick={() => setScreen("question")}>十二步起局</button>
           {history.length > 0 && (
-            <button
-              className="ghost-button"
-              onClick={() => setHistoryOpen(true)}
-            >
-              最近起局 {history.length}
-            </button>
+            <button onClick={() => setHistoryOpen(true)}>最近命书</button>
           )}
+        </nav>
+        <div className="header-actions">
+          <span>
+            <i /> 服务正常
+          </span>
+          <button className="ghost-button" onClick={() => setScreen("question")}>
+            立即问事
+          </button>
         </div>
       </header>
-      <section className="landing-layout">
-        <div className="landing-copy">
-          <p>第一页 · 人生岔路口占测</p>
-          <h1>
-            <span>当人生走到岔路，</span>
-            <br />
-            <i>
-              该继续、转向，
-              <br />
-              还是等待？
-            </i>
-          </h1>
-          <b>起一局，看此刻更顺的方向。</b>
-          <p className="landing-desc">
-            从一个真实问题开始，亲眼看完十二步奇门成盘，再由 DeepSeek AI
-            结合你的处境，生成可以回到九宫核对的个性命书。
+      <section className="landing-oracle-hero">
+        <div className="oracle-ambient ambient-a" />
+        <div className="oracle-ambient ambient-b" />
+        <div className="oracle-copy">
+          <p className="oracle-eyebrow">
+            <i /> 新一代奇门 AI 问事体验 <i />
           </p>
-          <button className="primary-cta" onClick={() => setScreen("question")}>
-            <i>启</i>
+          <h1>
+            观时定局，<em>见势知行</em>
+          </h1>
+          <p className="oracle-subtitle">
+            把此刻真正困住你的事写下来。先看十二步奇门如何成局，
+            再由 DeepSeek 读懂你的处境，把盘面翻译成下一步行动。
+          </p>
+          <form
+            className="oracle-ask"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setScreen("question");
+            }}
+          >
+            <div className="oracle-modes" role="group" aria-label="选择问事方向">
+              {starterPrompts.map((item) => (
+                <button
+                  type="button"
+                  key={item.label}
+                  className={
+                    topic === item.label ||
+                    (item.label === "事业选择" && topic === "事业发展")
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() => {
+                    setTopic(
+                      item.label === "事业选择" ? "事业发展" : item.label,
+                    );
+                    setQuestion(item.question);
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <label>
+              <textarea
+                value={question}
+                maxLength={120}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="心有所问，请写下一件真正想看清的事……"
+                aria-label="写下想问的事"
+              />
+              <button type="submit" disabled={question.trim().length < 6}>
+                起一局 <i>→</i>
+              </button>
+            </label>
+            <small>一事一问 · 规则排盘不随机 · AI 只解读、不改盘</small>
+          </form>
+          <div className="oracle-prompts">
+            <span>你也可以这样问</span>
+            <div>
+              {starterPrompts.map((item) => (
+                <button
+                  key={item.question}
+                  onClick={() => {
+                    setTopic(
+                      item.label === "事业选择" ? "事业发展" : item.label,
+                    );
+                    setQuestion(item.question);
+                    setScreen("question");
+                  }}
+                >
+                  {item.question}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="oracle-preview">
+          <header>
             <span>
-              <b>开始问事</b>
-              <small>规则起局 · DeepSeek AI 解命</small>
+              <i /> 起局预演
+            </span>
+            <b>十二步排盘过程全程可见</b>
+          </header>
+          <QimenEngineVisual />
+          <div className="oracle-ai-flow">
+            <span>
+              <i>01</i>
+              <b>AI 理解问题</b>
+              <small>识别议题与现实背景</small>
             </span>
             <em>→</em>
-          </button>
-          <div className="landing-proof">
             <span>
-              <b>01</b>聚焦问事
+              <i>12</i>
+              <b>规则固定命盘</b>
+              <small>节令、四柱、九宫成局</small>
             </span>
-            <span>
-              <b>12</b>规则起局
-            </span>
-            <span>
-              <b>AI</b>个性命书
-            </span>
-          </div>
-          <div className="landing-ai-note">
-            <i>AI</i>
-            <span>
-              <b>AI 不排盘，只负责理解你</b>
-              <small>先由规则固定盘面，再生成个性解读与同局追问。</small>
+            <em>→</em>
+            <span className="ai">
+              <i>AI</i>
+              <b>生成个性命书</b>
+              <small>断语、行动与同局追问</small>
             </span>
           </div>
-        </div>
-        <div className="landing-instrument">
-          <QimenEngineVisual />
         </div>
       </section>
+      <section className="oracle-capabilities">
+        <article>
+          <i>壹</i>
+          <span>
+            <b>它先听懂你</b>
+            <small>模糊念头可交给 AI 凝练成一个适合起局的问题。</small>
+          </span>
+        </article>
+        <article>
+          <i>贰</i>
+          <span>
+            <b>过程不是黑箱</b>
+            <small>封题到成局十二步演算逐段展示，结果与动画一致。</small>
+          </span>
+        </article>
+        <article>
+          <i>叁</i>
+          <span>
+            <b>答案可以继续问</b>
+            <small>命书生成后，AI 会沿用同一张盘回答你的后续疑问。</small>
+          </span>
+        </article>
+      </section>
       <footer className="landing-footer">
-        <span>传统文化体验</span>
-        <b>规则排盘不随机 · AI 解读不改盘 · 每条结论可回到九宫依据</b>
+        <span>一局 · 奇门问事</span>
+        <b>传统文化体验 · 不替代医疗、法律、投资及其他专业判断</b>
       </footer>
       {historyOpen && (
         <div className="history-backdrop" onClick={() => setHistoryOpen(false)}>
