@@ -1081,26 +1081,34 @@ export default function Home() {
           </button>
         </header>
         <section className="result-mast">
-          <div>
-            <p>
+          <div className="mast-content">
+            <p className="result-meta">
               {chart.input.questionType} · {chart.input.focus || focus} ·{" "}
               {chart.calendar.solar}
             </p>
-            <span className="mast-conclusion-label">本局结论</span>
-            <h1>{interpretation.decisionTitle}</h1>
-            <blockquote>所问：“{chart.input.question}”</blockquote>
+            <div className="result-conclusion-block">
+              <span className="mast-conclusion-label">本局结论</span>
+              <h1>{interpretation.decisionTitle}</h1>
+            </div>
+            <div className="result-question-block">
+              <span>你问的是</span>
+              <blockquote>“{chart.input.question}”</blockquote>
+            </div>
             <div className="conditional-verdict">
               <span>{verdict.label}</span>
               <b>{verdict.title}</b>
               <small>{verdict.condition}</small>
             </div>
             {chart.input.context && (
-              <small>问事背景：{chart.input.context}</small>
+              <div className="result-context-block">
+                <span>你的处境</span>
+                <small>{chart.input.context}</small>
+              </div>
             )}
             <div className="reading-badges">
-              <span>规则盘面与基础判断已生成</span>
-              {aiReading && <b>结合处境的解读已生成</b>}
-              {aiLoading && <em>处境化命书生成中，不改变基础判断</em>}
+              <span><i>✓</i> 规则盘面已生成</span>
+              {aiReading && <b><i>✓</i> 处境解读已生成</b>}
+              {aiLoading && <em><i /> 处境解读生成中</em>}
             </div>
             {isSeeking && (
               <small className="symbolic-scope-note">
@@ -1683,12 +1691,17 @@ export default function Home() {
           <div className="intake-conversation">
             <div className="intake-chat-stream" aria-live="polite">
               <div className="intake-ai-intro">
-                <i>问</i>
+                <span className="ink-avatar adviser" aria-label="问事官"><i>问</i></span>
                 <p>你不需要先判断这属于事业、感情还是人生方向。把真实处境告诉我，我会替你完成分类。</p>
               </div>
               {intakeMessages.map((message, index) => (
                 <div className={`intake-message ${message.role}`} key={`${message.role}-${index}`}>
-                  <small>{message.role === "user" ? "你" : "问事官"}</small>
+                  <span
+                    className={`ink-avatar ${message.role === "user" ? "seeker" : "adviser"}`}
+                    aria-label={message.role === "user" ? "我" : "问事官"}
+                  >
+                    <i>{message.role === "user" ? "我" : "问"}</i>
+                  </span>
                   <p>{message.content}</p>
                 </div>
               ))}
@@ -1794,88 +1807,96 @@ export default function Home() {
             className="question-console wizard-panel confirm-panel"
             onSubmit={begin}
           >
-            <div className="sealed-summary">
+            <div className="sealed-summary confirm-content-card">
+              <span className="confirm-card-index">01 · 这一问</span>
               <small>{topic}</small>
               <blockquote>“{question}”</blockquote>
               {context && <p>{context}</p>}
             </div>
-            <div className="ai-selection-summary">
-              <span>取用方向已经确认</span>
+            <div className="ai-selection-summary confirm-content-card">
+              <span className="confirm-card-index">02 · 判断方向</span>
+              <small>系统已根据你的问题完成分类</small>
               <div><b>{topic}</b><i>·</i><b>{focus}</b></div>
-              <small>如需改变所问方向，请返回对话重新说明；这里不再让你手动理解分类。</small>
+              <p>如需改变方向，请返回对话重新说明。</p>
             </div>
-            <div className="time-purpose-note">
-              <b>为什么需要起局时间？</b>
-              <span>奇门排盘用时间确定节令、四柱、阴阳遁和九宫位置。默认采用你点击“开始起局”时的北京时间，一般无需修改。</span>
-            </div>
-            <div className="confirm-time-simple">
-              <div>
-                <span>起局时刻</span>
-                <b>
-                  {timeMode === "now"
-                    ? "此刻（北京时间）"
-                    : `${customTime.replace("T", " ")}（北京时间）`}
-                </b>
-                <small>默认用你点击“开始起局”时的当前时间成盘。</small>
+            <div className="confirm-time-group confirm-content-card">
+              <div className="confirm-time-heading">
+                <span className="confirm-card-index">03 · 起局时间</span>
+                <small>时间用于确定节令、四柱和九宫位置</small>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (timeMode === "now") {
-                    setCustomTime(toLocalInput(beijingNow()));
-                    setTimeMode("custom");
-                  } else {
-                    setTimeMode("now");
-                  }
-                }}
-              >
-                {timeMode === "now" ? "改用其他时间" : "使用现在"}
-              </button>
+              <div className="confirm-time-simple">
+                <div>
+                  <span>本局采用</span>
+                  <b>
+                    {timeMode === "now"
+                      ? "现在起局"
+                      : `${customTime.replace("T", " ")} 起局`}
+                  </b>
+                  <small>{timeMode === "now" ? "自动取你点击开始时的北京时间" : "按你指定的北京时间成盘"}</small>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (timeMode === "now") {
+                      setCustomTime(toLocalInput(beijingNow()));
+                      setTimeMode("custom");
+                    } else {
+                      setTimeMode("now");
+                    }
+                  }}
+                >
+                  {timeMode === "now" ? "指定时间" : "改用现在"}
+                </button>
+              </div>
+              {timeMode === "custom" && (
+                <label className="custom-time-field">
+                  <span>指定北京时间</span>
+                  <input
+                    type="datetime-local"
+                    value={customTime}
+                    onChange={(e) => setCustomTime(e.target.value)}
+                    required
+                  />
+                </label>
+              )}
+              <details className="confirm-advanced">
+                <summary>
+                  <span>记录地点（可选）</span>
+                  <small>仅显示在命书中，不参与排盘</small>
+                </summary>
+                <label>
+                  <span>城市名称</span>
+                  <input
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    maxLength={20}
+                    placeholder="例如：上海；不填写也可以起局"
+                  />
+                </label>
+              </details>
             </div>
-            {timeMode === "custom" && (
-              <label className="custom-time-field">
-                <span>指定北京时间</span>
-                <input
-                  type="datetime-local"
-                  value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
-                  required
-                />
-              </label>
-            )}
-            <details className="confirm-advanced">
-              <summary>
-                <span>记录地点（可选）</span>
-                <small>不参与排盘，只显示在这份命书中</small>
-              </summary>
-              <label>
-                <span>城市名称</span>
-                <input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  maxLength={20}
-                  placeholder="例如：上海；不填写也可以起局"
-                />
-              </label>
-            </details>
-            <div className="use-rule">
-              <span>
-                <b>{selectedTopic.name}的取用</b>
-                <small>
-                  {topicUsePreview[selectedTopic.name] || `${selectedTopic.hint}。本题会按这一类问题对应的传统取用方式判断。`}
-                </small>
-              </span>
+            <div className="confirm-guidance-grid">
+              <div className="use-rule confirm-content-card">
+                <span className="confirm-card-index">04 · 本题取用</span>
+                <span>
+                  <b>{selectedTopic.name}</b>
+                  <small>
+                    {topicUsePreview[selectedTopic.name] || `${selectedTopic.hint}。本题会按这一类问题对应的传统取用方式判断。`}
+                  </small>
+                </span>
+              </div>
+              <div className="confirm-note confirm-content-card">
+                <span className="confirm-card-index">使用边界</span>
+                <b>传统文化体验</b>
+                <span>不处理生死、医疗、法律与投资涨跌等高风险问题。</span>
+              </div>
             </div>
             {topic === "寻人寻物" && (
-              <div className="confirm-note">
+              <div className="confirm-note seeking-note confirm-content-card">
                 <b>寻迹有界</b>
-                <span>近身小物，落处随手而移，盘中取其大致方位、明暗高低与藏露之象；若问贵人、机缘或远处之物，则观其来路、环境与相应时机。</span>
+                <span>近身小物取大致方位与藏露之象；贵人、机缘或远处之物，则观其来路、环境与时机。</span>
               </div>
             )}
-            <div className="confirm-note">
-              <b>传统文化体验</b>
-              <span>不处理生死、医疗、法律与投资涨跌等高风险问题。</span>
-            </div>
             <div className="wizard-actions">
               <button
                 type="button"
