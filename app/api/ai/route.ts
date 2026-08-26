@@ -1,4 +1,4 @@
-import { classifyFollowupIntent, intakeBoundaryReply, intakeResponseStillAsking, intakeRuleRoute, type AiReading, type AiRequest, type IntakeResult } from '../../../lib/ai.ts';
+import { classifyFollowupIntent, fallbackFollowupAnswer, intakeBoundaryReply, intakeResponseStillAsking, intakeRuleRoute, type AiReading, type AiRequest, type IntakeResult } from '../../../lib/ai.ts';
 import { buildQimenChart, type QimenChart } from '../../../lib/qimen.ts';
 import { interpretChart } from '../../../lib/interpret.ts';
 
@@ -177,6 +177,10 @@ export async function POST(request:Request){
     });
     const chart=canonicalChart(body.chart);
     const fallback=interpretChart(chart);
+    if(!process.env.DEEPSEEK_API_KEY)return Response.json({
+      mode:'followup',
+      answer:fallbackFollowupAnswer(chart,question,body.reading),
+    });
     const previousAnswer=[...messages].reverse().find(item=>item.role==='assistant')?.content||String((body.reading as {oracle?:unknown}|null)?.oracle||fallback.oracle);
     const intentTask=intent==='simplify'
       ? `任务：用户是在要求把上一条回答说得更简单，不是在要求重新解盘。只改写previousAnswer。\n- 以“简单说：”开头，最多3个短句，全文不超过100个汉字。\n- 保留原结论和最重要的一步行动。\n- 不展示盘面术语、依据清单、免责声明，不增加新判断。\n- 本轮是表达改写，不适用“必须展示盘面证据”的要求。`

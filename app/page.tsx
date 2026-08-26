@@ -18,6 +18,7 @@ import { interpretChart, type Tone } from "../lib/interpret";
 import {
   requestAi,
   classifySeekScope,
+  fallbackFollowupAnswer,
   intakeResponseStillAsking,
   intakeBoundaryReply,
   intakeRuleRoute,
@@ -885,12 +886,12 @@ export default function Home() {
         ...nextMessages,
         { role: "assistant", content: response.answer },
       ]);
-    } catch (error) {
+    } catch {
       setChatMessages([
         ...nextMessages,
         {
           role: "assistant",
-          content: `本次追问没有完成：${error instanceof Error ? error.message : "解读服务暂时不可用"}`,
+          content: fallbackFollowupAnswer(chart, nextQuestion, aiReading),
         },
       ]);
     } finally {

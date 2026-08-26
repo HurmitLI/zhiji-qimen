@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { buildQimenChart } from '../lib/qimen.ts';
 import { interpretChart } from '../lib/interpret.ts';
-import { classifyFollowupIntent, classifySeekScope, intakeRuleRoute } from '../lib/ai.ts';
+import { classifyFollowupIntent, classifySeekScope, fallbackFollowupAnswer, intakeRuleRoute } from '../lib/ai.ts';
 import { mediaForStage, ritualMedia } from '../lib/ritual-media.ts';
 
 assert.equal(classifyFollowupIntent('再简单点'), 'simplify');
@@ -60,6 +60,15 @@ for (const item of cases) {
   assert.equal(chart.timeStem.palace, chart.zhishi.palace);
   assert.equal(chart.stemIndex[chart.timeStem.stem], chart.timeStem.palace);
 }
+
+const followupChart = buildQimenChart({ date: cases[0].date, questionType: '事业发展', question: '面对眼前的事业选择，我应该稳住积累还是主动突破？', city: '上海' });
+const directionAnswer = fallbackFollowupAnswer(followupChart, '这局更适合继续还是转向？');
+const obstacleAnswer = fallbackFollowupAnswer(followupChart, '我现在最大的阻力是什么？');
+const weekAnswer = fallbackFollowupAnswer(followupChart, '未来七天先验证什么？');
+assert.doesNotMatch(directionAnswer, /服务|没有完成|未配置/);
+assert.doesNotMatch(obstacleAnswer, /服务|没有完成|未配置/);
+assert.doesNotMatch(weekAnswer, /服务|没有完成|未配置/);
+assert.equal(new Set([directionAnswer, obstacleAnswer, weekAnswer]).size, 3);
 
 const sameTime = new Date('2026-08-25T19:05:00+08:00');
 const topics = ['人生方向', '事业发展', '财富趋势', '感情关系', '学业成长', '迁移远行'];

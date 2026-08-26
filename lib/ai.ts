@@ -1,4 +1,5 @@
 import type { QimenChart } from './qimen';
+import { interpretChart } from './interpret.ts';
 
 export type AiChapter={label:string;title:string;body:string;evidence:string};
 export type AiReading={decisionTitle?:string;omenTitle:string;oracle:string;overview:string;chapters:AiChapter[];actions:string[];followupPrompts:string[]};
@@ -107,6 +108,28 @@ export function classifyFollowupIntent(input:string):FollowupIntent{
   if(/下一步|怎么办|怎么做|先做什么|该做什么|具体做什么|从哪开始|如何行动/i.test(clean))return 'action';
   if(/为什么|依据是什么|什么依据|怎么看出来|如何看出|凭什么|盘面依据/i.test(clean))return 'reason';
   return 'normal';
+}
+
+export function fallbackFollowupAnswer(chart:QimenChart,question:string,reading:AiReading|null=null){
+  const fallback=interpretChart(chart);
+  const intent=classifyFollowupIntent(question);
+  const actions=reading?.actions?.length===3?reading.actions:fallback.actions;
+  const oracle=reading?.oracle||fallback.oracle;
+  if(intent==='scope')return '这里可以继续问这局的结论、原因、阻力和下一步；如果换了主题或时间，需要重新起局。';
+  if(intent==='simplify')return `简单说：${fallback.decisionTitle}。先做这一件事：${actions[0]}`;
+  if(intent==='explain')return `简单说，这局不是让你立刻做不可逆的选择，而是先把“${fallback.questionAnchor}”最关键的成立条件验证清楚。${actions[0]}`;
+  if(intent==='action')return `先做这一件事：${actions[0]}做完后再看现实反馈是否连续同向；没有明确反馈，就先别扩大投入。`;
+  if(intent==='reason')return `这次主要看${fallback.mainSymbol}所在宫，而不是只凭值使门下结论。${fallback.evidenceSummary}${fallback.relation}。`;
+  if(/(?:继续|转向|放弃|留下|离开|要不要|该不该)/i.test(question)){
+    const tendency=fallback.tone==='bright'?'更偏向继续，但只适合小步推进':fallback.tone==='caution'?'更偏向暂缓，先不要加码':'不急着二选一，先试后定';
+    return `就这局看，${tendency}。${actions[0]}如果七天内仍没有连续、可复核的正向反馈，再考虑转向。`;
+  }
+  if(/(?:阻力|卡点|瓶颈|卡住)/i.test(question)){
+    const block=fallback.fortuneChapters.find(item=>item.label==='主要阻力');
+    return block?`当前最大的阻力是：${block.title}。${block.body}`:`当前最大的阻力不是机会多少，而是关键条件还没有被现实信息验证。${actions[0]}`;
+  }
+  if(/(?:七天|7天|一周|先验证)/i.test(question))return actions[1]||actions[0];
+  return `${oracle} 下一步先做：${actions[0]}`;
 }
 
 export type AiRequest=
