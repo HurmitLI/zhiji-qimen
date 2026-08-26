@@ -82,7 +82,7 @@ async function createResponse(input:unknown,instructions:string,format:unknown,m
   if(!key)throw new Error('DEEPSEEK_API_KEY_NOT_CONFIGURED');
   const response=await fetch(DEEPSEEK_URL,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,instructions,input:JSON.stringify(input),text:{format},reasoning:{effort:'none'},temperature:.35,max_output_tokens:maxOutputTokens})});
   const data=await response.json() as {error?:{message?:string};output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>};
-  if(!response.ok)throw new Error(data.error?.message||`AI请求失败：${response.status}`);
+  if(!response.ok)throw new Error(data.error?.message||`解读请求失败：${response.status}`);
   const text=textFromResponse(data).trim();
   try{return JSON.parse(text) as Record<string,unknown>}catch{
     const start=text.indexOf('{');const end=text.lastIndexOf('}');
@@ -154,8 +154,8 @@ export async function POST(request:Request){
     const result=await createResponse({chart,fallback,reading:body.reading,messages,question:body.question.slice(0,600)},`${baseInstructions}\n任务：回答用户围绕“同一局”的追问。以fallback中的主用神、主体宫、事情宫为核心，值使只作为时段环境。先给直接回答，再说明盘面依据，最后给一个现实核验动作。如果问题已经变成新的时间、新的主题或要求重新预测，提示用户重新起局。只输出符合JSON Schema的JSON对象。`,followupSchema,1000,'answer');
     return Response.json({mode:'followup',...result});
   }catch(error){
-    const message=error instanceof Error?error.message:'AI服务暂时不可用';
-    if(message==='DEEPSEEK_API_KEY_NOT_CONFIGURED')return Response.json({error:'AI密钥尚未配置'},{status:503});
+    const message=error instanceof Error?error.message:'解读服务暂时不可用';
+    if(message==='DEEPSEEK_API_KEY_NOT_CONFIGURED')return Response.json({error:'解读服务尚未配置'},{status:503});
     if(message==='INVALID_CHART_INPUT')return Response.json({error:'盘面输入无效，请重新起局'},{status:400});
     return Response.json({error:message.slice(0,240)},{status:502});
   }

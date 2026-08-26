@@ -8428,3 +8428,51 @@ body {
     right: 7px;
   }
 }
+
+/* Question entry: blank canvas with larger, more useful starting prompts */
+.intake-entry {
+  width: min(1040px, calc(100% - 40px));
+}
+.intake-examples {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+.intake-examples > span {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+  font-size: 10px;
+}
+.intake-examples button {
+  min-height: 58px;
+  padding: 13px 17px;
+  border-color: rgba(20, 20, 20, 0.1);
+  border-radius: 18px;
+  color: #62625e;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.55;
+  transition: 0.2s ease;
+}
+.intake-examples button:hover {
+  color: #30302d;
+  border-color: rgba(143, 106, 56, 0.28);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 25px rgba(43, 51, 69, 0.06);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 760px) {
+  .intake-examples {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .intake-examples button,
+  .intake-examples button:nth-of-type(n + 3) {
+    display: block;
+    width: 100%;
+    min-height: 52px;
+    font-size: 11px;
+  }
+}

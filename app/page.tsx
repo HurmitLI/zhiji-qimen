@@ -50,6 +50,14 @@ const starterPrompts = [
     label: "迁移远行",
     question: "近期是否适合换一个城市或环境重新开始？",
   },
+  {
+    label: "财富趋势",
+    question: "接下来我更该开拓收入，还是先守住已有积累？",
+  },
+  {
+    label: "学业成长",
+    question: "面对接下来的学习与考试，我该继续深耕还是调整方法？",
+  },
 ] as const;
 const stages = [
   {
@@ -356,9 +364,7 @@ export default function Home() {
   const [screen, setScreen] = useState<Screen>("landing");
   const [topic, setTopic] = useState(topicMeta[0].name);
   const [focus, setFocus] = useState(focusOptions[0]);
-  const [question, setQuestion] = useState(
-    "未来一段时间，我的人生方向更适合继续、转向还是等待？",
-  );
+  const [question, setQuestion] = useState("");
   const [context, setContext] = useState("");
   const [city, setCity] = useState("");
   const [timeMode, setTimeMode] = useState<"now" | "custom">("now");
@@ -442,7 +448,7 @@ export default function Home() {
         return next;
       });
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "AI解读暂时不可用");
+      setAiError(error instanceof Error ? error.message : "个性解读暂时不可用");
     } finally {
       setAiLoading(false);
     }
@@ -563,6 +569,11 @@ export default function Home() {
   }
   function reset() {
     setScreen("landing");
+    setQuestion("");
+    setContext("");
+    setIntakeMessages([]);
+    setIntakeOptions([]);
+    setIntakeReady(false);
     setChart(null);
     setStage(0);
     setPaused(false);
@@ -630,7 +641,7 @@ export default function Home() {
       applyIntakeResult(normalizedResponse);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "AI 问事官暂时没有回应";
+        error instanceof Error ? error.message : "问事官暂时没有回应";
       setAiError(message);
       if (existingMessages.length >= 2) {
         const words = nextMessages
@@ -739,7 +750,7 @@ export default function Home() {
         ...nextMessages,
         {
           role: "assistant",
-          content: `本次追问没有完成：${error instanceof Error ? error.message : "AI服务暂时不可用"}`,
+          content: `本次追问没有完成：${error instanceof Error ? error.message : "解读服务暂时不可用"}`,
         },
       ]);
     } finally {
@@ -806,7 +817,7 @@ export default function Home() {
               <em>
                 {stage < 11
                   ? "规则引擎正在排盘"
-                  : "规则成盘 · 即将交给 AI 解读"}
+                  : "规则成盘 · 即将依盘成书"}
               </em>
             </div>
             <RitualVisual
@@ -970,8 +981,8 @@ export default function Home() {
             )}
             <div className="reading-badges">
               <span>盘面由规则计算</span>
-              {aiReading && <b>AI 个性命书已生成</b>}
-              {aiLoading && <em>AI 命书生成中…</em>}
+              {aiReading && <b>个性命书已生成</b>}
+              {aiLoading && <em>命书生成中…</em>}
             </div>
           </div>
           <div className="mast-actions">
@@ -1006,23 +1017,23 @@ export default function Home() {
           </div>
           <em>→</em>
           <div className="ai">
-            <i>AI</i>
+            <i>解</i>
             <span>
               <b>
                 {aiLoading
-                  ? "AI 正在写命书"
+                  ? "正在依盘写命书"
                   : aiReading
-                    ? "AI 个性命书已生成"
+                    ? "个性命书已生成"
                     : "基础命书模式"}
               </b>
-              <small>AI 只解读，不修改任何盘面数据</small>
+              <small>只读取既定盘面，不修改任何排盘数据</small>
             </span>
           </div>
           <em>→</em>
           <button className="ask" onClick={() => setResultTab("ask")}>
             <i>03</i>
             <span>
-              <b>AI 同局追问</b>
+              <b>同局追问</b>
               <small>围绕这一局继续问选择与行动</small>
             </span>
           </button>
@@ -1038,7 +1049,7 @@ export default function Home() {
               <div className="ai-status">
                 <i />
                 <span>
-                  <b>AI 正在结合你的问题写命书</b>
+                  <b>正在结合你的问题写命书</b>
                   <small>规则盘面已经生成，你可以先看基础判断。</small>
                 </span>
               </div>
@@ -1046,7 +1057,7 @@ export default function Home() {
             {aiError && (
               <div className="ai-fallback">
                 <b>基础命书已就绪</b>
-                <span>AI 个性化解读暂未完成：{aiError}</span>
+                <span>个性化解读暂未完成：{aiError}</span>
               </div>
             )}
             {samePeriodNotice && (
@@ -1063,7 +1074,7 @@ export default function Home() {
               </div>
               <div>
                 <span>
-                  {aiReading ? "AI 个性化核心断语" : "本局核心断语"}
+                  {aiReading ? "个性化核心断语" : "本局核心断语"}
                 </span>
                 <h2>{readingOracle}</h2>
                 <p>
@@ -1075,7 +1086,7 @@ export default function Home() {
             </div>
             {aiReading && (
               <div className="ai-overview">
-                <span>AI 综合解读</span>
+                <span>结合处境的综合解读</span>
                 <p>{aiReading.overview}</p>
               </div>
             )}
@@ -1113,7 +1124,7 @@ export default function Home() {
             </div>
             <div className="book-section-heading">
               <div>
-                <span>{aiReading ? "AI 个性命书" : "一局命书"}</span>
+                <span>{aiReading ? "个性命书" : "一局命书"}</span>
                 <h3>命书六章</h3>
                 <p>不是六次预测，而是把同一张盘拆成六个阅读视角。</p>
               </div>
@@ -1166,7 +1177,7 @@ export default function Home() {
             )}
             <div className="book-action-block">
               <div className="book-action-heading">
-                <span>{aiReading ? "AI 给出的现实动作" : "把命书带回现实"}</span>
+                <span>{aiReading ? "结合本局的现实动作" : "把命书带回现实"}</span>
                 <h3>接下来，先做这三件事</h3>
                 <p>不是等待命运改变，而是用盘面提示安排可以验证的动作。</p>
               </div>
@@ -1302,7 +1313,7 @@ export default function Home() {
               </button>
               <span>02 / 03 · 命盘</span>
               <button onClick={() => setResultTab("ask")}>
-                继续向 AI 问命 →
+                继续问这一局 →
               </button>
             </div>
           </section>
@@ -1311,12 +1322,9 @@ export default function Home() {
         {resultTab === "ask" && (
           <section className="result-view ask-page">
             <div className="ask-heading">
-              <span>同局追问 · AI 问命官</span>
+              <span>同局追问 · 问命官</span>
               <h2>继续问这一局</h2>
-              <p>
-                AI
-                会沿用刚才的时间盘、你的问题和命书回答，不会重新随机起盘。
-              </p>
+              <p>回答会沿用刚才的时间盘、你的问题和命书，不会重新随机起盘。</p>
             </div>
             <div className="ask-shell">
               <div className="prompt-chips">
@@ -1346,7 +1354,7 @@ export default function Home() {
                       className={`chat-message ${message.role}`}
                     >
                       <small>
-                        {message.role === "user" ? "你" : "AI 问命官"}
+                        {message.role === "user" ? "你" : "问命官"}
                       </small>
                       <p>{message.content}</p>
                     </div>
@@ -1375,9 +1383,9 @@ export default function Home() {
               </form>
             </div>
             <div className="ask-boundary">
-              <b>AI 负责个性化解读</b>
+              <b>解读不会改变排盘</b>
               <span>
-                排盘结果由规则引擎固定，AI 无法修改值符、值使、九宫与局数。
+                值符、值使、九宫与局数由规则固定，后续问答只围绕同一张盘展开。
               </span>
             </div>
             <div className="page-turn">
@@ -1408,7 +1416,7 @@ export default function Home() {
               </button>
               <div className="method-hero">
                 <span>排盘规则与使用边界</span>
-                <h2>规则负责成盘，AI 负责解命。</h2>
+                <h2>规则负责成盘，命书负责把盘讲清。</h2>
                 <p>本产品展示传统奇门排盘结构，并不主张它具有科学预测能力。</p>
               </div>
               <div className="method-grid">
@@ -1438,9 +1446,9 @@ export default function Home() {
                 </div>
                 <em>不可改盘 →</em>
                 <div className="ai">
-                  <i>AI</i>
+                  <i>解</i>
                   <span>
-                    <b>AI 负责理解你</b>
+                    <b>问事与命书负责理解处境</b>
                     <small>凝练问题、个性命书、行动建议与同局追问</small>
                   </span>
                 </div>
@@ -1455,7 +1463,7 @@ export default function Home() {
           </div>
         )}
         <footer className="result-footer">
-          <span>一局 · 奇门 AI 问事</span>
+          <span>一局 · 奇门问事</span>
           <b>传统文化体验 · 重大决定仍需结合现实信息</b>
         </footer>
       </main>
@@ -1471,7 +1479,7 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>QIMEN × AI</small>
+              <small>观时 · 定局</small>
             </span>
           </div>
           <button className="ghost-button" onClick={() => setScreen("landing")}>
@@ -1480,9 +1488,9 @@ export default function Home() {
         </header>
         <section className="intake-entry">
           <div className="intake-entry-copy">
-            <span>AI 问事官 · 第一步</span>
+            <span>问事 · 第一步</span>
             <h1>只管说你想算的事。</h1>
-            <p>不用先选分类，也不用研究奇门术语。AI 会听懂你的处境，再用一两个问题帮你把这一局定清楚。</p>
+            <p>不用先选分类，也不用研究奇门术语。先把真实处境说出来，再用一两个关键问题把这一局定清楚。</p>
           </div>
           <form className="intake-single-box" onSubmit={startIntake}>
             <textarea
@@ -1491,19 +1499,18 @@ export default function Home() {
               onChange={(e) => setQuestion(e.target.value)}
               minLength={2}
               maxLength={600}
-              placeholder="比如：我现在的工作越来越没有意义，但离开又担心走错，我该怎么看接下来的方向？"
               aria-label="写下想算的事情"
             />
             <div>
-              <small>{question.length}/600 · AI 会继续问你</small>
+              <small>{question.length}/600 · 写清处境后，会继续追问关键点</small>
               <button disabled={question.trim().length < 2}>
-                交给 AI 梳理 <i>→</i>
+                继续梳理 <i>→</i>
               </button>
             </div>
           </form>
           <div className="intake-examples">
             <span>不知道怎么说？试试</span>
-            {starterPrompts.slice(0, 3).map((item) => (
+            {starterPrompts.slice(0, 6).map((item) => (
               <button key={item.question} onClick={() => setQuestion(item.question)}>
                 {item.question}
               </button>
@@ -1522,17 +1529,17 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>AI 问事官</small>
+              <small>问事官</small>
             </span>
           </div>
-          <div className="intake-status"><i /> AI 正在为这一局定题</div>
+          <div className="intake-status"><i /> 正在为这一局定题</div>
           <button className="ghost-button" onClick={() => setScreen("question")}>重新描述</button>
         </header>
         <section className="intake-chat-layout">
           <aside>
-            <span>AI 定题</span>
+            <span>问事定题</span>
             <h1>先听懂你，<br />再开始算。</h1>
-            <p>AI 只负责理解问题和选择取用方向，不参与排盘，也不会提前给出结果。</p>
+            <p>这一步只负责理解问题和选择取用方向，不参与排盘，也不会提前给出结果。</p>
             <ol>
               <li className="done">说出困惑</li>
               <li className={intakeReady ? "done" : "active"}>追问关键点</li>
@@ -1542,12 +1549,12 @@ export default function Home() {
           <div className="intake-conversation">
             <div className="intake-chat-stream" aria-live="polite">
               <div className="intake-ai-intro">
-                <i>AI</i>
+                <i>问</i>
                 <p>你不需要先判断这属于事业、感情还是人生方向。把真实处境告诉我，我会替你完成分类。</p>
               </div>
               {intakeMessages.map((message, index) => (
                 <div className={`intake-message ${message.role}`} key={`${message.role}-${index}`}>
-                  <small>{message.role === "user" ? "你" : "AI 问事官"}</small>
+                  <small>{message.role === "user" ? "你" : "问事官"}</small>
                   <p>{message.content}</p>
                 </div>
               ))}
@@ -1564,7 +1571,7 @@ export default function Home() {
             )}
             {intakeReady ? (
               <div className="intake-ready-card">
-                <span>AI 已完成定题</span>
+                <span>这一问已经定清</span>
                 <blockquote>“{question}”</blockquote>
                 <div>
                   <b>{topic}</b><i>·</i><b>{focus}</b>
@@ -1601,7 +1608,7 @@ export default function Home() {
                 )}
               </div>
             )}
-            {aiError && <small className="intake-error">AI 刚才短暂失去响应，你仍可以选择一个方向继续。</small>}
+            {aiError && <small className="intake-error">刚才短暂失去响应，你仍可以选择一个方向继续。</small>}
           </div>
         </section>
       </main>
@@ -1616,7 +1623,7 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>QIMEN × AI</small>
+              <small>观时 · 定局</small>
             </span>
           </div>
           <div className="flow-progress">
@@ -1641,10 +1648,10 @@ export default function Home() {
             </h1>
             <p>确认无误后，问题将被封存。接下来进入十二步奇门起局过程。</p>
             <div className="ai-role-note confirm">
-              <i>AI</i>
+              <i>解</i>
               <span>
-                <b>先规则起局，再由 AI 写命书</b>
-                <small>AI 会读取固定盘面和你的真实背景，但不会改盘。</small>
+                <b>先规则起局，再依固定盘面写命书</b>
+                <small>命书会结合你的真实背景，但不会改变盘面。</small>
               </span>
             </div>
           </div>
@@ -1658,7 +1665,7 @@ export default function Home() {
               {context && <p>{context}</p>}
             </div>
             <div className="ai-selection-summary">
-              <span>AI 问事官已完成取用选择</span>
+              <span>取用方向已经确认</span>
               <div><b>{topic}</b><i>·</i><b>{focus}</b></div>
               <small>如需改变所问方向，请返回对话重新说明；这里不再让你手动理解分类。</small>
             </div>
@@ -1748,12 +1755,12 @@ export default function Home() {
           <i>壹</i>
           <span>
             <b>一局</b>
-            <small>QIMEN × AI</small>
+            <small>观时 · 定局</small>
           </span>
         </div>
         <nav className="oracle-nav" aria-label="首页导航">
           <a href="#why-yiju">为什么是一局</a>
-          <a href="#ai-showcase">AI 如何工作</a>
+          <a href="#ai-showcase">如何问一局</a>
           <a href="#qimen-system">奇门体系</a>
           {history.length > 0 && (
             <button onClick={() => setHistoryOpen(true)}>最近命书</button>
@@ -1773,19 +1780,19 @@ export default function Home() {
         <div className="oracle-ambient ambient-b" />
         <div className="oracle-copy">
           <p className="oracle-eyebrow">
-            <i /> 新一代奇门 AI 问事体验 <i />
+            <i /> 一事一问 · 观时定局 <i />
           </p>
           <h1>
             观时定局，<em>见势知行</em>
           </h1>
           <p className="oracle-subtitle">
             不必先懂奇门，也不必先选分类。说出此刻真正困住你的事，
-            AI 会先听懂你，再用一张完整奇门局把问题照亮。
+            先把问题理清，再用一张完整奇门局照见其中的关系与变化。
           </p>
           <button className="oracle-primary-cta" onClick={() => setScreen("question")}>
-            把心事交给 AI <i>→</i>
+            说出想问的事 <i>→</i>
           </button>
-          <small className="oracle-hero-note">无需注册 · 一事一问 · AI 不参与改盘</small>
+          <small className="oracle-hero-note">无需注册 · 一事一问 · 问题不改变盘面</small>
           <div className="oracle-prompts">
             <span>他们常从这些问题开始</span>
             <div>
@@ -1807,15 +1814,15 @@ export default function Home() {
       <section className="home-why" id="why-yiju">
         <div className="home-section-heading">
           <span>为什么选择一局</span>
-          <h2>不是把古书搬上网页，<br /><em>而是让 AI 真正听懂你。</em></h2>
+          <h2>不是把古书搬上网页，<br /><em>而是先把真正想问的事说清。</em></h2>
           <p>克制、清楚、可追溯。让奇门回到一个问题、一张盘和一条可以带回现实的线索。</p>
         </div>
         <div className="home-feature-list">
           {[
-            ["壹", "终于有 AI 先听懂你的纠结", "你只需说出真实处境。AI 会继续追问关键点，替你判断这是事业、关系、迁移还是人生方向。"],
-            ["贰", "一个问题，只起一张真实时间盘", "节令、四柱、阴阳遁、局数、九宫与值使都由规则计算，AI 不能为了迎合答案而修改。"],
+            ["壹", "先把纠结整理成真正的一问", "你只需说出真实处境。问事官会继续追问关键点，判断这是事业、关系、迁移还是人生方向。"],
+            ["贰", "一个问题，只起一张真实时间盘", "节令、四柱、阴阳遁、局数、九宫与值使都由规则计算，不会为了迎合答案而修改。"],
             ["叁", "从封题到成局，十二步全部可见", "不是播放一段与结果无关的视频。每一步演出都对应同一张盘的真实计算输出。"],
-            ["肆", "命书不是终点，还能沿着同一局追问", "AI 会保留你的原问题、盘面和命书上下文，继续回答阻力、机会与下一步怎么验证。"],
+            ["肆", "命书不是终点，还能沿着同一局追问", "同局追问会保留原问题、盘面与命书，继续回答阻力、机会与下一步怎么验证。"],
             ["伍", "玄而不吓人，答案始终留在现实里", "不做确定性预言，不拿生死、疾病、投资涨跌制造焦虑。每个提示都落到可撤回、可验证的行动。"],
           ].map(([number, title, body], index) => (
             <article key={number} className={index % 2 ? "reverse" : ""}>
@@ -1827,8 +1834,8 @@ export default function Home() {
       </section>
       <section className="home-ai-showcase" id="ai-showcase">
         <div className="home-section-heading">
-          <span>AI 驱动</span>
-          <h2>它不给你一句判词，<br /><em>而是陪你把问题看清。</em></h2>
+          <span>问事方法</span>
+          <h2>不急着给一句判词，<br /><em>先把问题放回完整处境。</em></h2>
           <p>从一段说不清的困惑，到可以起局的一问，再到盘面依据与现实行动。</p>
         </div>
         <div className="ai-demo-card">
@@ -1837,12 +1844,12 @@ export default function Home() {
             <blockquote>“工作越来越没有意义，但离开又怕走错，我到底该怎么办？”</blockquote>
           </div>
           <div className="ai-demo-steps">
-            <article><i>AI</i><span><small>理解处境</small><b>你更想确认的是去留，还是转向后的具体方向？</b></span></article>
+            <article><i>问</i><span><small>理解处境</small><b>你更想确认的是去留，还是转向后的具体方向？</b></span></article>
             <article><i>局</i><span><small>规则成盘</small><b>以此刻时间完成十二步排盘，锁定议题宫、主体宫与行动宫</b></span></article>
             <article><i>解</i><span><small>个性命书</small><b>给出主运、机会、阻力、转机与三条现实核验动作</b></span></article>
           </div>
           <div className="ai-demo-answer">
-            <span>AI 命书摘要</span>
+            <span>本局命书摘要</span>
             <h3>先结束无效消耗，<br />再验证新方向是否值得投入。</h3>
             <p>答案会同时说明盘面依据与现实核验方式，而不是只留下一句模糊的吉凶。</p>
             <button onClick={() => setScreen("question")}>开始问我的事 →</button>
@@ -1858,7 +1865,7 @@ export default function Home() {
         <div className="qimen-system-grid">
           <article><i>天</i><h3>天时</h3><p>节令、四柱、阴阳遁与局数，固定这一刻的时空底盘。</p></article>
           <article><i>地</i><h3>九宫</h3><p>三奇六仪、九星、八门与八神依规则旋布，各有落宫。</p></article>
-          <article><i>人</i><h3>所问</h3><p>AI 从对话中判断取用方向，但同一时间不会因此改成另一张盘。</p></article>
+          <article><i>人</i><h3>所问</h3><p>对话只用于判断取用方向，同一时间不会因此改成另一张盘。</p></article>
           <article><i>神</i><h3>命书</h3><p>把传统象意翻译成与你处境相关、可以继续追问的现代语言。</p></article>
         </div>
       </section>
@@ -1866,7 +1873,7 @@ export default function Home() {
         <div><span>你的问题，只属于这一局</span><h2>不需要表演虔诚，<br />也不需要交出隐私。</h2></div>
         <ul>
           <li><b>本地历史</b><small>最近命书只保存在当前设备，随时可以清除。</small></li>
-          <li><b>规则与 AI 分工</b><small>规则负责排盘，AI 负责理解与表达，边界始终可见。</small></li>
+          <li><b>成盘与解读分开</b><small>规则负责排盘，问事与命书负责理解和表达，边界始终可见。</small></li>
           <li><b>不制造依赖</b><small>重大决定仍需结合现实信息与专业判断。</small></li>
         </ul>
       </section>

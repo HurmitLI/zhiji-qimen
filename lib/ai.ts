@@ -33,6 +33,6 @@ export type AiResponse=
 export async function requestAi<T extends AiResponse>(body:AiRequest):Promise<T>{
   const response=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await response.json() as T&{error?:string};
-  if(!response.ok)throw new Error(data.error||'AI服务暂时不可用');
+  if(!response.ok)throw new Error(data.error||'解读服务暂时不可用');
   return data;
 }
