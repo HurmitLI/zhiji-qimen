@@ -20,8 +20,9 @@ export type IntakeResult={
 export function classifySeekScope(input:string):SeekScope|null{
   const clean=String(input||'').trim();
   const locator=/(?:在哪|在哪里|哪儿|什么位置|具体位置|离我最近|身边|附近|找不到|不见了|丢了|找回|寻找|想找|求)/i;
+  const distantSignal=/(?:不在|远离).{0,8}(?:我)?(?:身边|附近|这里)|(?:外地|异地|远方|远处|别处|海外|国外|外省|外市)|(?:遗落|丢失).{0,8}(?:在外|路上|途中)/i;
   const symbolicTarget=/(?:贵人|伯乐|缘分|机缘|机会|合作伙伴|合伙人|客户|人脉|资源|适合的(?:工作|房子|住处|城市|方向)|远方.{0,6}(?:人|物|机会))/i;
-  if(locator.test(clean)&&symbolicTarget.test(clean))return 'symbolic_or_distant';
+  if(locator.test(clean)&&(symbolicTarget.test(clean)||distantSignal.test(clean)))return 'symbolic_or_distant';
   const concreteTarget=/(?:矿泉水|水瓶|瓶(?:子)?|杯(?:子)?|手机|钥匙|钱包|证件|耳机|背包|包|戒指|文件|物品|东西|遥控器|眼镜|手表|充电器|宠物|猫|狗|某个人|家人)/i;
   if(locator.test(clean)&&concreteTarget.test(clean))return 'nearby_exact';
   return null;

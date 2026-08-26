@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { buildQimenChart } from '../lib/qimen.ts';
 import { interpretChart } from '../lib/interpret.ts';
 import { classifyFollowupIntent, classifySeekScope, intakeRuleRoute } from '../lib/ai.ts';
+import { mediaForStage, ritualMedia } from '../lib/ritual-media.ts';
 
 assert.equal(classifyFollowupIntent('再简单点'), 'simplify');
 assert.equal(classifyFollowupIntent('用人话说'), 'simplify');
@@ -21,8 +22,14 @@ const patronRoute = intakeRuleRoute('我想找一个能帮助事业的贵人');
 assert.equal(classifySeekScope('我想找一个能帮助事业的贵人'), 'symbolic_or_distant');
 assert.equal(patronRoute?.questionType, '寻人寻物');
 assert.match(patronRoute?.assistantMessage||'', /从何方来、何时相应/);
+assert.equal(classifySeekScope('我想找一枚不在我身边、可能遗落在外地的戒指'), 'symbolic_or_distant');
 assert.equal(intakeRuleRoute('我该不该转行'), null);
 assert.equal(intakeRuleRoute('这只股票明天会涨到多少钱')?.intentStatus, 'high_risk');
+for (let stage = 0; stage <= 10; stage += 1) {
+  assert.equal(mediaForStage(stage, '开门'), ritualMedia.intro, `第 ${stage} 步不得切换或重播通用动画`);
+}
+assert.equal(mediaForStage(11, '开门'), ritualMedia.doors['开门']);
+assert.equal(mediaForStage(11, '死门'), ritualMedia.doors['死门']);
 
 const cases = [
   {

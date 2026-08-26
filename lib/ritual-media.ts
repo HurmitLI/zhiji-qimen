@@ -11,6 +11,5 @@ export const ritualMedia={
 
 export function mediaForStage(stage:number,door:string){
   if(stage===11)return ritualMedia.doors[door]||ritualMedia.ritual;
-  if(stage>=6)return ritualMedia.ritual;
   return ritualMedia.intro;
 }

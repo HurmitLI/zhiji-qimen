@@ -17,6 +17,7 @@ import {
 import { interpretChart, type Tone } from "../lib/interpret";
 import {
   requestAi,
+  classifySeekScope,
   intakeResponseStillAsking,
   intakeBoundaryReply,
   intakeRuleRoute,
@@ -284,18 +285,7 @@ function RitualVisual({
 }) {
   const videoSrc = mediaForStage(stage, revealDoor);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playbackRate =
-    stage <= 5
-      ? speed === 2
-        ? 0.92
-        : 0.51
-      : stage <= 10
-        ? speed === 2
-          ? 1.1
-          : 0.61
-        : speed === 2
-          ? 1.78
-          : 0.94;
+  const playbackRate = speed === 2 ? 1.8 : 1;
 
   const syncPlaybackRate = useCallback(() => {
     if (!videoRef.current) return;
@@ -420,7 +410,7 @@ export default function Home() {
     if (!chart) return;
     const revealDoor = interpretChart(chart).mainDoor;
     const sources = [
-      ritualMedia.ritual,
+      ritualMedia.intro,
       mediaForStage(11, revealDoor),
     ];
     const preloaders = [...new Set(sources)].map((src) => {
@@ -501,7 +491,7 @@ export default function Home() {
   useEffect(() => {
     if (screen !== "ritual" || paused) return;
     const delay =
-      stage === 11 ? (speed === 2 ? 2800 : 5300) : speed === 2 ? 900 : 1650;
+      stage === 11 ? (speed === 2 ? 2800 : 5300) : speed === 2 ? 260 : 430;
     const timer = window.setTimeout(() => {
       if (stage < 11) setStage((s) => s + 1);
       else {
@@ -925,44 +915,6 @@ export default function Home() {
               <b>{stageOutput(chart, stage)}</b>
             </div>
           </div>
-          <aside className="live-ledger">
-            <p>LIVE LEDGER</p>
-            <dl>
-              <div>
-                <dt>节令</dt>
-                <dd>{stage >= 2 ? chart.calendar.activeJie : "—"}</dd>
-              </div>
-              <div>
-                <dt>四柱</dt>
-                <dd>
-                  {stage >= 3
-                    ? `${chart.calendar.day}·${chart.calendar.time}`
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt>遁局</dt>
-                <dd>
-                  {stage >= 5 ? `${chart.dunType}${chart.juNumber}局` : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt>旬首</dt>
-                <dd>
-                  {stage >= 6 ? `${chart.xunshou}遁${chart.hiddenYi}` : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt>值符</dt>
-                <dd>{stage >= 7 ? chart.zhifu.star : "—"}</dd>
-              </div>
-              <div>
-                <dt>值使</dt>
-                <dd>{stage >= 8 ? chart.zhishi.door : "—"}</dd>
-              </div>
-            </dl>
-            <small>每一项都来自同一时间盘，不是动画随机数。</small>
-          </aside>
           <div className="transport">
             <button
               onClick={() => setStage((s) => Math.max(0, s - 1))}
@@ -1004,7 +956,14 @@ export default function Home() {
     );
     const issuePalace = palaceByNumber(chart, interpretation.issuePalace);
     const readingOracle = aiReading?.oracle || interpretation.oracle;
-    const readingActions = aiReading?.actions || interpretation.actions;
+    const seekScope = isSeeking ? classifySeekScope(chart.input.question) : null;
+    const readingActions = seekScope === "symbolic_or_distant"
+      ? [
+          "先复盘最后确认它存在的时间、地点、经手人和移动路线，建立一条可核对的现实时间线。",
+          `把${issuePalace.direction}方与“${issuePalace.element}”象作为线索优先级，核对外地住所、交通中转、寄存收纳及失物招领渠道。`,
+          "仍无证据时，联系承运方、场所人员或同行者继续查证；盘中方象只用于排定先后，不当作具体坐标。",
+        ]
+      : (aiReading?.actions || interpretation.actions);
     const readingChapters =
       aiReading?.chapters || interpretation.fortuneChapters;
     const followupPrompts = aiReading?.followupPrompts || [
@@ -1060,7 +1019,7 @@ export default function Home() {
               {chart.input.questionType} · {chart.input.focus || focus} ·{" "}
               {chart.calendar.solar}
             </p>
-            <span className="mast-conclusion-label">本局判断</span>
+            <span className="mast-conclusion-label">本局结论</span>
             <h1>{interpretation.decisionTitle}</h1>
             <blockquote>所问：“{chart.input.question}”</blockquote>
             {chart.input.context && (
@@ -1068,7 +1027,7 @@ export default function Home() {
             )}
             <div className="reading-badges">
               <span>盘面由规则计算</span>
-              {aiReading && <b>个性命书已生成</b>}
+              {aiReading && <b>结合处境的解读已生成</b>}
               {aiLoading && <em>命书生成中…</em>}
             </div>
             {isSeeking && (
@@ -1100,8 +1059,32 @@ export default function Home() {
         {resultTab === "book" && (
           <section className="result-view book-page unified-book-page">
             <div className="page-kicker">
-              <span>本局命书</span>
-              <b>先看结论，再按需要展开细节</b>
+              <span>结论之后</span>
+              <b>先把行动带回现实，再按需要查看盘面解释</b>
+            </div>
+            <div className="book-action-block primary-action-block">
+              <div className="book-action-heading">
+                <span>本局最重要的部分</span>
+                <h3>接下来，先做这三件事</h3>
+                <p>结论只有落到现实动作才有用。先完成能够验证、能够撤回的步骤，再决定是否继续投入。</p>
+              </div>
+              <div className="book-action-list">
+                {readingActions.map((item, i) => (
+                  <label key={item}>
+                    <input
+                      type="checkbox"
+                      checked={checks[i]}
+                      onChange={() =>
+                        setChecks((list) =>
+                          list.map((v, n) => (n === i ? !v : v)),
+                        )
+                      }
+                    />
+                    <i>{checks[i] ? "✓" : pad(i + 1)}</i>
+                    <b>{item}</b>
+                  </label>
+                ))}
+              </div>
             </div>
             {aiLoading && (
               <div className="ai-status">
@@ -1131,7 +1114,7 @@ export default function Home() {
             )}
             <div className="oracle-hero">
               <div className="oracle-copy">
-                <span>为什么这样判断</span>
+                <span>结论说明</span>
                 <h2>{readingOracle}</h2>
                 <p>{interpretation.evidenceSummary}</p>
                 <small>
@@ -1178,9 +1161,9 @@ export default function Home() {
             </div>
             <div className="book-section-heading">
               <div>
-                <span>{aiReading ? "个性命书" : "一局命书"}</span>
-                <h3>{isSeeking ? "寻找线索六步" : "命书六章"}</h3>
-                <p>{isSeeking ? "按主线、状态、方位、环境、遮蔽与下一步逐层排查。" : "不是六次预测，而是把同一张盘拆成六个阅读视角。"}</p>
+                <span>盘面拆解 · 按需阅读</span>
+                <h3>{isSeeking ? "寻找线索六步" : "结论的六层解释"}</h3>
+                <p>{isSeeking ? "把结论拆成主线、状态、方位、环境、遮蔽与下一步；想追线索时再看。" : "这里不是另一份预测，而是把本局结论拆成六个观察层；想追原因时再展开。"}</p>
               </div>
               {bookExpanded && (
                 <button onClick={() => setBookExpanded(false)}>收起细节</button>
@@ -1229,30 +1212,6 @@ export default function Home() {
                 {isSeeking ? "继续查看 04—06 · 环境、遮蔽与寻找顺序 →" : "继续阅读 04—06 · 机会、阻力与转机 →"}
               </button>
             )}
-            <div className="book-action-block">
-              <div className="book-action-heading">
-                <span>{aiReading ? "结合本局的现实动作" : "把命书带回现实"}</span>
-                <h3>接下来，先做这三件事</h3>
-                <p>不是等待命运改变，而是用盘面提示安排可以验证的动作。</p>
-              </div>
-              <div className="book-action-list">
-                {readingActions.map((item, i) => (
-                  <label key={item}>
-                    <input
-                      type="checkbox"
-                      checked={checks[i]}
-                      onChange={() =>
-                        setChecks((list) =>
-                          list.map((v, n) => (n === i ? !v : v)),
-                        )
-                      }
-                    />
-                    <i>{checks[i] ? "✓" : pad(i + 1)}</i>
-                    <b>{item}</b>
-                  </label>
-                ))}
-              </div>
-            </div>
             <div className="page-turn">
               <span>01 / 03 · 命书</span>
               <button onClick={() => setResultTab("chart")}>
@@ -1468,8 +1427,8 @@ export default function Home() {
               </button>
               <div className="method-hero">
                 <span>排盘规则与使用边界</span>
-                <h2>规则负责成盘，命书负责把盘讲清。</h2>
-                <p>本产品展示传统奇门排盘结构，并不主张它具有科学预测能力。</p>
+                <h2>这张盘怎么来，结论怎么看。</h2>
+                <p>时间固定盘面，问题决定观察位置；页面给出的结论可以回到九宫查看依据。</p>
               </div>
               <div className="method-grid">
                 <article>
@@ -1490,7 +1449,7 @@ export default function Home() {
               </div>
               <div className="ai-boundary-map">
                 <div>
-                  <i>RULE</i>
+                  <strong>成盘</strong>
                   <span>
                     <b>规则引擎负责成盘</b>
                     <small>时间、节令、四柱、遁局、九宫、值符与值使</small>
@@ -1498,10 +1457,10 @@ export default function Home() {
                 </div>
                 <em>不可改盘 →</em>
                 <div className="ai">
-                  <i>解</i>
+                  <strong>解读</strong>
                   <span>
-                    <b>问事与命书负责理解处境</b>
-                    <small>凝练问题、个性命书、行动建议与同局追问</small>
+                    <b>问事与解读负责说明结论</b>
+                    <small>整理问题、解释依据、给出现实动作与同局追问</small>
                   </span>
                 </div>
               </div>
