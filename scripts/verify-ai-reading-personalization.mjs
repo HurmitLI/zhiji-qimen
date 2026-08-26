@@ -51,4 +51,24 @@ assert.equal(generic.decisionTitle, fallback.decisionTitle);
 assert.equal(generic.oracle, fallback.oracle);
 assert.deepEqual(generic.actions, fallback.actions);
 
+const homeworkChart = buildQimenChart({
+  date: new Date('2026-08-26T18:17:00+08:00'),
+  questionType: '学业成长',
+  question: '我的作业什么时候可以做好',
+  city: '',
+  focus: '选择行动时机',
+  context: '用户询问作业完成时间。',
+});
+const homeworkFallback = interpretChart(homeworkChart);
+assert.equal(homeworkFallback.questionAnchor, '作业完成');
+assert.equal(homeworkFallback.decisionTitle, '别再等状态，先把作业拆开做，完成时间才会变得明确');
+const homeworkReading = groundedReading({
+  ...raw,
+  decisionTitle: '先把的作业什么时候可以做好的条件谈清',
+  oracle: '就你问的“的作业什么时候可以做好”而言，机会来自职位、合作和客户。',
+}, homeworkFallback);
+assert.equal(homeworkReading.decisionTitle, homeworkFallback.decisionTitle);
+assert.doesNotMatch(homeworkReading.oracle, /的作业什么时候|职位|客户/);
+assert.deepEqual(homeworkReading.actions, homeworkFallback.actions);
+
 console.log('AI个性化内容可通过；缺少具体问题对象的套话会回退到个性化基础命书。');

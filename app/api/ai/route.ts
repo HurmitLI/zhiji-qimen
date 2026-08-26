@@ -40,17 +40,28 @@ function canonicalChart(raw:unknown):QimenChart{
   const match=time.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
   if(!match)throw new Error('INVALID_CHART_INPUT');
   const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]),Number(match[4]),Number(match[5]),0);
+  const question=String(input?.question||'').slice(0,600);
+  const homeworkTiming=/(?:作业|论文|报告).{0,10}(?:什么时候|多久|何时|做完|做好|完成)|(?:什么时候|多久|何时).{0,10}(?:作业|论文|报告)/i.test(question);
   return buildQimenChart({
     date,
-    questionType:String(input?.questionType||'开放问题').slice(0,20),
-    question:String(input?.question||'').slice(0,600),
+    questionType:homeworkTiming?'学业成长':String(input?.questionType||'开放问题').slice(0,20),
+    question,
     city:String(input?.city||'未填写').slice(0,40),
-    focus:String(input?.focus||'').slice(0,40),
+    focus:homeworkTiming?'选择行动时机':String(input?.focus||'').slice(0,40),
     context:String(input?.context||'').slice(0,600),
   });
 }
 
 export function groundedReading(raw:Record<string,unknown>,fallback:ReturnType<typeof interpretChart>):AiReading{
+  if(fallback.questionAnchor==='作业完成')return {
+    decisionTitle:fallback.decisionTitle,
+    omenTitle:fallback.omenTitle,
+    oracle:fallback.oracle,
+    overview:'这份作业现在最需要的不是继续猜完成时间，而是把剩余任务、每部分预计用时和今天能完成的第一小段列清。完成第一段后，再按真实速度估算日期。',
+    chapters:fallback.fortuneChapters.map(({label,title,body,evidence})=>({label,title,body,evidence})),
+    actions:fallback.actions,
+    followupPrompts:['今天先做作业的哪一部分？','怎么估算这份作业的完成时间？','如果一直卡住，下一步先处理什么？'],
+  };
   const chapters=Array.isArray(raw.chapters)?raw.chapters:[];
   const actions=Array.isArray(raw.actions)?raw.actions.filter((item):item is string=>typeof item==='string').slice(0,3):[];
   const followupPrompts=Array.isArray(raw.followupPrompts)?raw.followupPrompts.filter((item):item is string=>typeof item==='string').slice(0,3):[];
@@ -113,16 +124,29 @@ function validBody(body:unknown):body is AiRequest{
   return ['intake','clarify','reading','followup'].includes(String((body as {mode?:string}).mode));
 }
 
-async function proxyToVefaasAi(raw:string){
+async function proxyToVefaasAi(raw:string,body:AiRequest){
   try{
+    const normalizedChart=body.mode==='reading'?canonicalChart(body.chart):null;
+    const forwardedBody=normalizedChart?JSON.stringify({...body,chart:normalizedChart}):raw;
     const response=await fetch(VEFAAS_AI_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','X-Yiju-Client':'local-preview'},
-      body:raw,
+      body:forwardedBody,
       cache:'no-store',
     });
     const contentType=response.headers.get('content-type')||'application/json; charset=utf-8';
-    return new Response(await response.text(),{
+    const responseText=await response.text();
+    if(response.ok&&normalizedChart){
+      try{
+        const data=JSON.parse(responseText) as {mode?:string;reading?:Record<string,unknown>};
+        if(data.reading)data.reading=groundedReading(data.reading,interpretChart(normalizedChart)) as unknown as Record<string,unknown>;
+        return new Response(JSON.stringify(data),{
+          status:response.status,
+          headers:{'Content-Type':'application/json; charset=utf-8','X-Yiju-AI-Source':'vefaas'},
+        });
+      }catch{}
+    }
+    return new Response(responseText,{
       status:response.status,
       headers:{'Content-Type':contentType,'X-Yiju-AI-Source':'vefaas'},
     });
@@ -138,7 +162,7 @@ export async function POST(request:Request){
     if(raw.length>60000)return Response.json({error:'请求内容过长'},{status:413});
     const body=JSON.parse(raw) as unknown;
     if(!validBody(body))return Response.json({error:'请求格式无效'},{status:400});
-    if(!process.env.DEEPSEEK_API_KEY&&process.env.NODE_ENV==='development')return proxyToVefaasAi(raw);
+    if(!process.env.DEEPSEEK_API_KEY&&process.env.NODE_ENV==='development')return proxyToVefaasAi(raw,body);
     if(body.mode==='intake'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请先写下想问的事情'},{status:400});
       const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-6).map(item=>({role:item.role==='assistant'?'assistant' as const:'user' as const,content:String(item.content||'').slice(0,600)}));

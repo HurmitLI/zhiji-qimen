@@ -36,6 +36,19 @@ export function classifySeekScope(input:string):SeekScope|null{
 export function intakeRuleRoute(input:string,history:ChatMessage[]=[]):IntakeResult|null{
   const clean=String(input||'').trim();
   const previousUserText=history.filter(item=>item.role==='user').map(item=>item.content).join(' ');
+  const homeworkTiming=/(?:作业|论文|报告).{0,10}(?:什么时候|多久|何时|做完|做好|完成)|(?:什么时候|多久|何时).{0,10}(?:作业|论文|报告)/i.test(clean);
+  if(homeworkTiming){
+    return {
+      intentStatus:'supported',
+      ready:true,
+      assistantMessage:'这一问已经明确：你想判断的是当前学习任务的完成节奏。已归入“学业成长”，重点看“选择行动时机”，确认后即可起局。',
+      questionType:'学业成长',
+      focus:'选择行动时机',
+      refinedQuestion:clean.slice(0,120),
+      contextSummary:'用户希望判断当前作业或学习任务的完成节奏。',
+      options:[],
+    };
+  }
   const timeOnly=/^(?:我)?(?:想)?(?:看|问|算)?(?:一下)?(?:我)?(?:今天|明天|后天|近期|最近|这个月|今年)(?:的)?(?:整体)?(?:运势)?(?:怎么样|好不好|吉凶)?[？?。！!\s]*$/i.test(clean)
     || /^(?:就是|只看|我说的就是)?(?:今天|明天|后天)(?:的)?[？?。！!\s]*$/i.test(clean);
   if(timeOnly){

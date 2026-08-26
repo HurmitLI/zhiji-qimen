@@ -225,6 +225,27 @@ function beijingNow() {
   );
 }
 
+function normalizeSavedQuestionChart(chart: QimenChart) {
+  const homeworkTiming = /(?:作业|论文|报告).{0,10}(?:什么时候|多久|何时|做完|做好|完成)|(?:什么时候|多久|何时).{0,10}(?:作业|论文|报告)/i.test(chart.input.question);
+  if (!homeworkTiming || chart.input.questionType === "学业成长") return chart;
+  const match = chart.input.time.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  if (!match) return chart;
+  return buildQimenChart({
+    date: new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5])),
+    questionType: "学业成长",
+    question: chart.input.question,
+    city: chart.input.city,
+    focus: "选择行动时机",
+    context: chart.input.context,
+  });
+}
+
+function readingNeedsRefresh(chart: QimenChart, reading?: AiReading) {
+  if (!reading) return true;
+  const text = [reading.decisionTitle, reading.oracle, reading.overview, ...reading.actions].join(" ");
+  return /(?:作业|论文|报告)/.test(chart.input.question) && /的作业什么时候|职位|客户|公开表达/.test(text);
+}
+
 function conditionalVerdict(
   chart: QimenChart,
   interpretation: ReturnType<typeof interpretChart>,
@@ -510,7 +531,7 @@ export default function Home() {
         const next = list.map((item) =>
           item.chart.input.time === nextChart.input.time &&
           item.chart.input.question === nextChart.input.question
-            ? { ...item, reading: response.reading }
+            ? { ...item, chart: nextChart, reading: response.reading }
             : item,
         );
         localStorage.setItem("yiju-readings", JSON.stringify(next));
@@ -659,18 +680,20 @@ export default function Home() {
     window.scrollTo({ top: 0 });
   }
   function restore(item: SavedReading) {
-    setChart(item.chart);
-    setFocus(item.focus);
-    setSelectedPalace(interpretChart(item.chart).issuePalace);
+    const restoredChart = normalizeSavedQuestionChart(item.chart);
+    const shouldRefresh = restoredChart !== item.chart || readingNeedsRefresh(restoredChart, item.reading);
+    setChart(restoredChart);
+    setFocus(restoredChart.input.focus || item.focus);
+    setSelectedPalace(interpretChart(restoredChart).issuePalace);
     setResultTab("book");
     setBookExpanded(false);
     setRulesOpen(false);
     setHistoryOpen(false);
-    setAiReading(item.reading || null);
+    setAiReading(shouldRefresh ? null : item.reading || null);
     setChatMessages([]);
     setSamePeriodNotice("");
     setScreen("result");
-    if (!item.reading) void generateAiReading(item.chart);
+    if (shouldRefresh) void generateAiReading(restoredChart);
   }
   function applyIntakeResult(result: IntakeResult) {
     const canStart =

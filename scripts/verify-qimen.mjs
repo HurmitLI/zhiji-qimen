@@ -47,6 +47,11 @@ assert.match(bareSeek?.assistantMessage || '', /找的是什么/);
 assert.equal(intakeRuleRoute('我要找钥匙或证件')?.ready, true);
 assert.equal(intakeRuleRoute('我要找一位失联的联系人')?.intentStatus, 'supported_symbolic');
 assert.match(intakeRuleRoute('我要找一位失联的联系人')?.assistantMessage || '', /来路|时机/);
+
+const homeworkRoute = intakeRuleRoute('我的作业什么时候可以做好');
+assert.equal(homeworkRoute?.ready, true);
+assert.equal(homeworkRoute?.questionType, '学业成长');
+assert.equal(homeworkRoute?.focus, '选择行动时机');
 for (let stage = 0; stage <= 10; stage += 1) {
   assert.equal(mediaForStage(stage, '开门'), ritualMedia.intro, `第 ${stage} 步不得切换或重播通用动画`);
 }

@@ -123,6 +123,8 @@ function relationText(self:Palace,issue:Palace){
 }
 
 const questionSubjectRules:[RegExp,string][]=[
+  [/作业.*(?:什么时候|多久|何时|做完|做好|完成)|(?:什么时候|多久|何时).*作业/,'作业完成'],
+  [/论文.*(?:什么时候|多久|何时|写完|完成)|(?:什么时候|多久|何时).*论文/,'论文完成'],
   [/工作稳定.*没有意义|没有意义.*工作/,'工作意义'],[/事业还是.*家庭|家庭.*事业/,'事业与家庭'],[/关键选择.*犹豫|犹豫.*选择/,'选择犹豫'],[/创造性|创造方向/,'创造转型'],[/自由职业/,'自由职业'],[/暂停一年|重新学习/,'暂停学习'],[/能力还是心态|心态问题/,'能力与心态'],
   [/创业公司.*邀请|创业公司的邀请/,'创业公司邀约'],[/内部竞聘|竞聘管理岗/,'内部竞聘'],[/终面/,'求职终面'],[/产品经理.*AI|AI解决方案顾问/,'职业转型'],[/高风险项目/,'高风险项目'],[/跨部门/,'跨部门机会'],[/设计转.*产品/,'设计转产品'],[/组织调整|职责变模糊/,'组织调整'],
   [/副业/,'副业投入'],[/存不下钱|冲动消费/,'储蓄习惯'],[/客单价/,'客单价'],[/合伙开工作室|启动资金/,'合伙工作室'],[/还债.*储蓄|储蓄.*学习/,'还债与学习'],[/客户复购|开发新产品/,'客户复购'],[/报价|定价/,'报价定价'],
@@ -147,6 +149,7 @@ function questionSubject(question:string,profile:TopicProfile){
 
 function contextualDecisionTitle(door:string|undefined,tone:Tone,subject:string,isSeeking:boolean,direction:string){
   if(isSeeking)return `先查${direction}方的${subject}线索`;
+  if(subject==='作业完成')return '别再等状态，先把作业拆开做，完成时间才会变得明确';
   if(tone==='caution'&&brightDoors.has(door||''))return `${subject}有入口，但先补承接条件`;
   const titleByDoor:Record<string,string>={
     开门:`先把${subject}的条件谈清`,休门:`先稳住${subject}的推进节奏`,生门:`优先积累${subject}的长期筹码`,
@@ -206,7 +209,9 @@ export function interpretChart(chart:QimenChart){
     : mainTone==='caution'&&!cautionDoors.has(issue.door||'')
       ? '但主体与事情之间的承接偏弱，先补足时间、能力或资源，再扩大动作。'
       : '';
-  const decisionBody=isSeeking
+  const decisionBody=questionAnchor==='作业完成'
+    ? `就这份作业而言，盘面更支持主动拆分和持续推进，而不是等待一个自动出现的完成时间。先列出剩余部分和预计用时，完成第一小段后，再按实际速度估算什么时候能做完。${decisionConstraint}`
+    : isSeeking
     ? `你问的是“${questionAnchor}”。寻迹不落寸尺，先取其方与象。优先留意${issue.direction}方向及与“${issue.element}”相关的环境特征；同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}，可据此排定寻找先后。`
     : `就你问的“${questionAnchor}”而言，${baseDecision.body}${decisionConstraint}`;
   const evidenceSummary=`本题按“${profile.label}”取用，观察${primarySymbol}；它落${issue.direction}${issue.name}，同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}。`;
@@ -235,7 +240,11 @@ export function interpretChart(chart:QimenChart){
     `围绕${issue.direction}·${issue.name}，今天找一条可以被外部事实验证的信息。`,
     `${profile.verb}，只做一个低成本、可撤回的小动作。`,
   ];
-  const actions=isSeeking?[
+  const actions=questionAnchor==='作业完成'?[
+    '今天：列出这份作业还剩哪些部分，给每一项估算时间，并先完成最小的一段。',
+    '七天内：记录每天的实际进度，用真实速度调整完成日期，不再只凭感觉估算。',
+    '连续两次按计划完成就维持当前节奏；如果仍然卡住，就缩小任务或向老师、同学确认要求。',
+  ]:isSeeking?[
     `第一轮：围绕“${questionAnchor}”，从相对当前位置的${issue.direction}侧开始，按桌面、地面、收纳处和遮挡处逐区检查。`,
     `第二轮：回忆“${questionAnchor}”最后一次使用、移动和清理的完整动线，并询问可能接触过它的人。`,
     `仍未找到“${questionAnchor}”时：停止重复翻找，改用设备定位、监控、失物招领或重新走一遍现实路线。`,
