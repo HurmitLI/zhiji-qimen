@@ -1088,7 +1088,7 @@ export default function Home() {
             </p>
             <div className="result-conclusion-block">
               <span className="mast-conclusion-label">本局结论</span>
-              <h1>{interpretation.decisionTitle}</h1>
+              <h1>{aiReading?.decisionTitle || interpretation.decisionTitle}</h1>
             </div>
             <div className="result-question-block">
               <span>你问的是</span>

@@ -1,4 +1,4 @@
-import { palaceByNumber, type QimenChart, type Palace } from './qimen';
+import { palaceByNumber, type QimenChart, type Palace } from './qimen.ts';
 
 export type Tone='bright'|'neutral'|'caution';
 export type Insight={label:string;headline:string;body:string;evidence:string;palace:number;tone:Tone;role:string};
@@ -122,6 +122,40 @@ function relationText(self:Palace,issue:Palace){
   return '主体与主用神分处不同位置，需要用现实反馈连接两端';
 }
 
+const questionSubjectRules:[RegExp,string][]=[
+  [/工作稳定.*没有意义|没有意义.*工作/,'工作意义'],[/事业还是.*家庭|家庭.*事业/,'事业与家庭'],[/关键选择.*犹豫|犹豫.*选择/,'选择犹豫'],[/创造性|创造方向/,'创造转型'],[/自由职业/,'自由职业'],[/暂停一年|重新学习/,'暂停学习'],[/能力还是心态|心态问题/,'能力与心态'],
+  [/创业公司.*邀请|创业公司的邀请/,'创业公司邀约'],[/内部竞聘|竞聘管理岗/,'内部竞聘'],[/终面/,'求职终面'],[/产品经理.*AI|AI解决方案顾问/,'职业转型'],[/高风险项目/,'高风险项目'],[/跨部门/,'跨部门机会'],[/设计转.*产品/,'设计转产品'],[/组织调整|职责变模糊/,'组织调整'],
+  [/副业/,'副业投入'],[/存不下钱|冲动消费/,'储蓄习惯'],[/客单价/,'客单价'],[/合伙开工作室|启动资金/,'合伙工作室'],[/还债.*储蓄|储蓄.*学习/,'还债与学习'],[/客户复购|开发新产品/,'客户复购'],[/报价|定价/,'报价定价'],
+  [/冷战/,'冷战沟通'],[/反复分合/,'反复分合'],[/异地.*结婚|结婚.*同城/,'异地与结婚'],[/表达心意|说开/,'表达心意'],[/家人.*沟通|沟通.*家人/,'家庭沟通'],[/合作伙伴.*疏远|利益分配.*信任/,'合作信任'],[/友谊|朋友.*边界/,'友谊边界'],
+  [/考研/,'考研复习'],[/论文/,'论文进度'],[/海外硕士|名校/,'海外申请'],[/公考/,'公考冲刺'],[/从零学习编程|学习编程/,'编程入门'],[/作品集/,'作品集投递'],[/证书考试.*工作项目|考试.*项目交付/,'考试与项目'],
+  [/上海工作|成都.*上海/,'上海工作机会'],[/出国工作|签证路径/,'出国工作'],[/一线城市.*家乡|家乡.*一线城市/,'城市去留'],[/九月搬家|提前定房/,'九月搬家'],[/远程工作|生活成本更低/,'远程迁居'],[/旅行计划|长途出行/,'长途旅行'],
+  [/MVP|公开发布/,'MVP发布'],[/项目进度.*延期|需求变化.*团队协作/,'项目延期'],[/个人用户.*企业客户|企业客户.*个人用户/,'个人或企业客户'],[/联合开发|开放接口/,'联合开发'],[/订阅制|单次付费/,'付费模式'],[/先招人|砍掉次要功能/,'招人与减功能'],[/用户注册.*使用很少|次日留存/,'用户留存'],
+  [/车钥匙/,'车钥匙'],[/护照/,'护照'],[/事业.*贵人|贵人.*事业/,'事业贵人'],[/孩子.*手表|手表丢/,'孩子的手表'],[/合同原件/,'合同原件'],[/长期合作.*合伙人|合伙人.*销售/,'长期合伙人'],
+  [/领导谈晋升|谈晋升/,'晋升沟通'],[/新店.*试营业|测试客流/,'新店试营业'],[/很久没沟通的客户|主动联系.*客户/,'老客户联系'],[/行业大会|主会场.*分论坛/,'行业大会'],[/发布个人作品|全平台公开/,'个人作品发布'],
+];
+
+function questionSubject(question:string,profile:TopicProfile){
+  const clean=String(question||'').replace(/[“”‘’]/g,'').replace(/\s+/g,'').trim();
+  for(const [pattern,label] of questionSubjectRules)if(pattern.test(clean))return label;
+  const firstClause=clean.split(/[，。？！；]/).find(part=>part.length>=4)||'';
+  const reduced=firstClause
+    .replace(/^(?:我|我们|最近|目前|现在|未来(?:一段时间|半年|一年)?|准备|计划|想要?|已经)/,'')
+    .replace(/(?:我该|应该|是否|适不适合|更适合|该不该|要不要).*$/,'')
+    .slice(0,12);
+  return reduced.length>=2?reduced:profile.label;
+}
+
+function contextualDecisionTitle(door:string|undefined,tone:Tone,subject:string,isSeeking:boolean,direction:string){
+  if(isSeeking)return `先查${direction}方的${subject}线索`;
+  if(tone==='caution'&&brightDoors.has(door||''))return `${subject}有入口，但先补承接条件`;
+  const titleByDoor:Record<string,string>={
+    开门:`先把${subject}的条件谈清`,休门:`先稳住${subject}的推进节奏`,生门:`优先积累${subject}的长期筹码`,
+    伤门:`先降低${subject}的试错成本`,杜门:`先补齐${subject}的关键信息`,景门:`先用成果验证${subject}`,
+    死门:`先停止${subject}的无效投入`,惊门:`先核实${subject}的关键变量`,
+  };
+  return titleByDoor[door||'']||(tone==='bright'?`可以推进${subject}`:tone==='caution'?`先解除${subject}的主要限制`:`先小步验证${subject}`);
+}
+
 export function interpretChart(chart:QimenChart){
   const timeStem=chart.timeStem||{stem:chart.timeStemVisible,palace:chart.zhishi.palace};
   const profile=topicProfiles[chart.input.questionType]||topicProfiles.开放问题;
@@ -132,6 +166,7 @@ export function interpretChart(chart:QimenChart){
   const matter=palaceByNumber(chart,timeStem.palace);
   const environment=palaceByNumber(chart,chart.zhishi.palace);
   const primarySymbol=symbolFor(chart,profile.primary,issue);
+  const questionAnchor=questionSubject(chart.input.question,profile);
   const relation=relationText(self,issue);
   const rawEnvironmentTone=scoreTone(palaceScore(environment,chart));
   const environmentModifier=rawEnvironmentTone==='bright'?1:rawEnvironmentTone==='caution'?-1:0;
@@ -165,19 +200,15 @@ export function interpretChart(chart:QimenChart){
     title:mainTone==='bright'?'沿当前线索继续深入':mainTone==='caution'?'先解除主要限制，再决定方向':'先收拢选择，再确定主线',
     body:`${issueText}。当前应先围绕${profile.label}处理最关键的一项条件，再决定是否扩大投入。`,
   };
-  const decisionTitle=isSeeking
-    ? `先查${issue.direction}方，再沿最后使用动线回溯`
-    : mainTone==='caution'&&brightDoors.has(issue.door||'')
-      ? '机会有入口，但当前还接不稳'
-      : baseDecision.title;
+  const decisionTitle=contextualDecisionTitle(issue.door,mainTone,questionAnchor,isSeeking,issue.direction);
   const decisionConstraint=chart.kongwangPalaces.includes(issue.palace)
     ? '同时该宫临空亡，时间、承诺或资源容易出现落差，不适合一次性重投入。'
     : mainTone==='caution'&&!cautionDoors.has(issue.door||'')
       ? '但主体与事情之间的承接偏弱，先补足时间、能力或资源，再扩大动作。'
       : '';
   const decisionBody=isSeeking
-    ? `寻迹不落寸尺，先取其方与象。优先留意${issue.direction}方向及与“${issue.element}”相关的环境特征；同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}，可据此排定寻找先后。`
-    : `${baseDecision.body}${decisionConstraint}`;
+    ? `你问的是“${questionAnchor}”。寻迹不落寸尺，先取其方与象。优先留意${issue.direction}方向及与“${issue.element}”相关的环境特征；同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}，可据此排定寻找先后。`
+    : `就你问的“${questionAnchor}”而言，${baseDecision.body}${decisionConstraint}`;
   const evidenceSummary=`本题按“${profile.label}”取用，观察${primarySymbol}；它落${issue.direction}${issue.name}，同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}。`;
   const matterText=doorMeaning[matter.door||'']||starMeaning[matter.star||'']||'当前动态仍需现实反馈确认';
   const environmentText=`值使${chart.zhishi.door}提示“${doorMeaning[chart.zhishi.door]}”，它描述时段气候，不等于本题结论。`;
@@ -205,20 +236,20 @@ export function interpretChart(chart:QimenChart){
     `${profile.verb}，只做一个低成本、可撤回的小动作。`,
   ];
   const actions=isSeeking?[
-    `第一轮：从相对当前位置的${issue.direction}侧开始，按桌面、地面、收纳处和遮挡处逐区检查。`,
-    '第二轮：回忆最后一次使用、移动和清理的完整动线，并询问可能接触过它的人。',
-    '仍未找到时：停止重复翻找，改用设备定位、监控、失物招领或重新走一遍现实路线。',
+    `第一轮：围绕“${questionAnchor}”，从相对当前位置的${issue.direction}侧开始，按桌面、地面、收纳处和遮挡处逐区检查。`,
+    `第二轮：回忆“${questionAnchor}”最后一次使用、移动和清理的完整动线，并询问可能接触过它的人。`,
+    `仍未找到“${questionAnchor}”时：停止重复翻找，改用设备定位、监控、失物招领或重新走一遍现实路线。`,
   ]:[
-    `今天：${profile.verb}，同时写下一个明确的停止条件。`,
-    `七天内：围绕“${primarySymbol}”收集三条独立的外部反馈，不只依赖自己的感觉。`,
-    `只有主用神条件与现实反馈连续同向时再加码；值使门只作为时段节奏参考。`,
+    `今天：围绕“${questionAnchor}”，${profile.verb}，同时写下一个明确的停止条件。`,
+    `七天内：为“${questionAnchor}”收集三条独立的外部反馈，并用${primarySymbol}所代表的条件逐条核对。`,
+    `只有“${questionAnchor}”的现实反馈与主用神条件连续同向时再加码；值使门只作为时段节奏参考。`,
   ];
   const oracle=decisionBody;
 
   return {
     summary,insights,signals,checklist,fortuneChapters,actions,oracle,tone:mainTone,toneLabel,
     mainDoor:issue.door||chart.zhishi.door,mainSymbol:primarySymbol,mainLabel:profile.primary.label,
-    omenTitle,decisionTitle,evidenceSummary,focusPalaces:[...new Set([issue.palace,self.palace,matter.palace])],issuePalace:issue.palace,
+    omenTitle,decisionTitle,questionAnchor,evidenceSummary,focusPalaces:[...new Set([issue.palace,self.palace,matter.palace])],issuePalace:issue.palace,
     selfPalace:self.palace,actionPalace:matter.palace,matterPalace:matter.palace,
     environmentPalace:environment.palace,environmentDoor:chart.zhishi.door,
     environmentSummary:environmentText,primaryReason:profile.primary.reason,relation,compositeScore,

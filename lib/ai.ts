@@ -1,7 +1,7 @@
 import type { QimenChart } from './qimen';
 
 export type AiChapter={label:string;title:string;body:string;evidence:string};
-export type AiReading={omenTitle:string;oracle:string;overview:string;chapters:AiChapter[];actions:string[];followupPrompts:string[]};
+export type AiReading={decisionTitle?:string;omenTitle:string;oracle:string;overview:string;chapters:AiChapter[];actions:string[];followupPrompts:string[]};
 export type ChatMessage={role:'user'|'assistant';content:string};
 export type FollowupIntent='simplify'|'explain'|'action'|'reason'|'scope'|'normal';
 export type IntakeIntentStatus='supported'|'supported_symbolic'|'unsupported'|'high_risk';
