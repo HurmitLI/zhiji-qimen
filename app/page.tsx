@@ -14,7 +14,7 @@ import {
   palaceByNumber,
   type QimenChart,
 } from "../lib/qimen";
-import { interpretChart, type Tone } from "../lib/interpret";
+import { interpretChart } from "../lib/interpret";
 import {
   requestAi,
   classifySeekScope,
@@ -157,23 +157,6 @@ const layerHelp: Record<keyof typeof layerNames, string> = {
   door: "只突出事情推进时的入口、节奏与阻力。",
   god: "只突出外部关系、主导力量与环境气氛。",
 };
-const signalPlainLanguage: Record<string, string> = {
-  主用神: "这道题主要看什么",
-  主体宫: "你现在是什么状态",
-  事情宫: "事情正在怎样发展",
-  时段值使: "当下环境是否顺手",
-};
-const topicUsePreview: Record<string, string> = {
-  人生方向: "主看时干所代表的事情动态，同时看日干所代表的本人",
-  事业发展: "主用神取开门；日干看本人，时干看事情发展",
-  财富趋势: "主用神取生门，戊作资金辅助；日干看本人",
-  感情关系: "主用神取六合观察关系连接；日干看本人",
-  学业成长: "主用神取景门，天辅作学习辅助；日干看本人",
-  迁移远行: "主看驿马，开门作通行辅助；日干看本人",
-  项目决策: "主用神取开门，天心作判断辅助；日干看本人",
-  寻人寻物: "主看时干所代表的对象动态，玄武作遮蔽辅助",
-  方位择时: "主看驿马，开门作行动入口辅助；日干看本人",
-};
 type Layer = keyof typeof layerNames;
 type Screen =
   | "landing"
@@ -225,6 +208,21 @@ function beijingNow() {
   );
 }
 
+function displayQuestionText(value: string) {
+  return value
+    .replace(/^循象寻迹[：:]\s*/, "")
+    .replace(/（取大致方位、明暗高低与藏露之象）$/, "")
+    .trim();
+}
+
+function displayActionText(value: string) {
+  return value
+    .replace(/循象寻迹[：:]\s*/g, "")
+    .replace(/^(?:今天|七天内|第一轮|第二轮)[：:]\s*/, "")
+    .replace(/^仍未找到.*?时[：:]\s*/, "")
+    .trim();
+}
+
 function normalizeSavedQuestionChart(chart: QimenChart) {
   const homeworkTiming = /(?:作业|论文|报告).{0,10}(?:什么时候|多久|何时|做完|做好|完成)|(?:什么时候|多久|何时).{0,10}(?:作业|论文|报告)/i.test(chart.input.question);
   if (!homeworkTiming || chart.input.questionType === "学业成长") return chart;
@@ -250,6 +248,22 @@ function conditionalVerdict(
   chart: QimenChart,
   interpretation: ReturnType<typeof interpretChart>,
 ) {
+  const isSeeking = chart.input.questionType === "寻人寻物";
+  if (isSeeking) {
+    const scope = classifySeekScope(chart.input.question);
+    const direction = palaceByNumber(chart, interpretation.issuePalace).direction;
+    return scope === "nearby_exact"
+      ? {
+          label: "第一轮怎么找",
+          title: `先从${direction}侧开始，再沿最后使用路线排查`,
+          condition: "这里只给寻找顺序，不是精确位置。没找到时，再查收纳处、遮挡处和接触过物品的人。",
+        }
+      : {
+          label: "先查现实线索",
+          title: `先复盘时间与经手路线，再把${direction}方作为辅助线索`,
+          condition: "方位只用于安排核查先后，不能代替定位、监控、承运记录或当事人信息。",
+        };
+  }
   const isCareer = chart.input.questionType === "事业发展" || chart.input.questionType === "事业选择";
   if (isCareer) {
     if (interpretation.tone === "bright") {
@@ -291,11 +305,6 @@ function conditionalVerdict(
     title: "先试后定，用现实反馈收拢选择",
     condition: "先完成一个低成本验证，再决定继续、转向还是等待。",
   };
-}
-
-function dedupeEvidence(value: string) {
-  const parts = value.split("/").map((part) => part.trim()).filter(Boolean);
-  return parts.filter((part, index) => parts.indexOf(part) === index).join(" / ");
 }
 
 function PalaceMatrix({
@@ -445,10 +454,6 @@ function stageOutput(chart: QimenChart, index: number) {
   return outputs[index];
 }
 
-function ToneDot({ tone }: { tone: Tone }) {
-  return <i className={`tone-dot ${tone}`} />;
-}
-
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("landing");
   const [topic, setTopic] = useState(topicMeta[0].name);
@@ -463,7 +468,6 @@ export default function Home() {
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState<1 | 2>(1);
   const [resultTab, setResultTab] = useState<ResultTab>("book");
-  const [bookExpanded, setBookExpanded] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [soundMuted, setSoundMuted] = useState(true);
   const [layer, setLayer] = useState<Layer>("all");
@@ -488,7 +492,6 @@ export default function Home() {
     () => (chart ? interpretChart(chart) : null),
     [chart],
   );
-  const selectedTopic = topicMeta.find((x) => x.name === topic) || topicMeta[0];
 
   useEffect(() => {
     if (!chart) return;
@@ -598,7 +601,6 @@ export default function Home() {
         setSoundMuted(true);
         setScreen("result");
         setResultTab("book");
-        setBookExpanded(false);
         setSelectedPalace(interpretation?.issuePalace);
         window.scrollTo({ top: 0 });
       }
@@ -668,7 +670,6 @@ export default function Home() {
     setPaused(false);
     setSoundMuted(true);
     setResultTab("book");
-    setBookExpanded(false);
     setRulesOpen(false);
     setSelectedPalace(undefined);
     setAiReading(null);
@@ -684,7 +685,6 @@ export default function Home() {
     setFocus(restoredChart.input.focus || item.focus);
     setSelectedPalace(interpretChart(restoredChart).issuePalace);
     setResultTab("book");
-    setBookExpanded(false);
     setRulesOpen(false);
     setHistoryOpen(false);
     setAiReading(shouldRefresh ? null : item.reading || null);
@@ -1034,8 +1034,6 @@ export default function Home() {
           "仍无证据时，联系承运方、场所人员或同行者继续查证；盘中方象只用于排定先后，不当作具体坐标。",
         ]
       : (aiReading?.actions || interpretation.actions);
-    const readingChapters =
-      aiReading?.chapters || interpretation.fortuneChapters;
     const followupPrompts = aiReading?.followupPrompts || [
       "这局更适合继续还是转向？",
       "我现在最大的阻力是什么？",
@@ -1094,38 +1092,9 @@ export default function Home() {
               <h1 className="mast-answer concise">{verdict.title}</h1>
               <p className="mast-answer-note">{verdict.condition}</p>
             </div>
-            <div className="result-question-block">
-              <span>你问的是</span>
-              <blockquote>“{chart.input.question}”</blockquote>
-            </div>
-            {chart.input.context && (
-              <div className="result-context-block">
-                <span>你的处境</span>
-                <small>{chart.input.context}</small>
-              </div>
-            )}
-            <div className="reading-badges">
-              <span><i>✓</i> 规则盘面已生成</span>
-              {aiReading && <b><i>✓</i> 处境解读已生成</b>}
-              {aiLoading && <em><i /> 处境解读生成中</em>}
-            </div>
-            {isSeeking && (
-              <small className="symbolic-scope-note">
-                寻迹有界 · 近身小物取其方与象，不落到寸尺；贵人与远方目标观其来路与时机
-              </small>
-            )}
+            <p className="mast-question-line"><span>所问</span>{displayQuestionText(chart.input.question)}</p>
           </div>
           <div className="mast-actions">
-            <button
-              onClick={() => {
-                setScreen("ritual");
-                setStage(0);
-                setPaused(false);
-                setSoundMuted(false);
-              }}
-            >
-              重看起局
-            </button>
             <button onClick={() => setRulesOpen(true)}>规则说明</button>
             <button onClick={copySummary}>
               {copied ? "命书已复制" : "分享命书摘要"}
@@ -1137,23 +1106,19 @@ export default function Home() {
         </section>
         {resultTab === "book" && (
           <section className="result-view book-page unified-book-page">
-            <div className="page-kicker">
-              <span>下一步</span>
-              <b>先验证，再决定</b>
-            </div>
             <div className="book-action-block primary-action-block">
               <div className="book-action-heading">
                 <span>现实核验 · 不需要现在完成</span>
-                <h3>把结论带回现实</h3>
-                <p>这不是网页里的待办任务。请按自己的实际节奏，依次确认信息、核实反馈，再决定是否行动。</p>
+                <h3>{isSeeking ? "按这个顺序找" : "把结论带回现实"}</h3>
+                <p>{isSeeking ? "先缩小范围，再沿现实路线排查；每一步都用于减少重复翻找。" : "这不是网页里的待办任务。请按自己的实际节奏，依次确认信息、核实反馈，再决定是否行动。"}</p>
               </div>
               <div className="book-action-list">
                 {readingActions.map((item, i) => (
                   <article key={item}>
                     <i>{pad(i + 1)}</i>
                     <div>
-                      <small>{["今天先确认什么", "七天内向谁核实", "满足什么条件再决定"][i]}</small>
-                      <p>{item.replace(/^(?:今天|七天内)[：:]\s*/, "")}</p>
+                      <small>{(isSeeking ? ["先从哪里开始", "沿什么路线排查", "仍没找到怎么办"] : ["今天先确认什么", "七天内向谁核实", "满足什么条件再决定"])[i]}</small>
+                      <p>{displayActionText(item)}</p>
                     </div>
                   </article>
                 ))}
@@ -1185,112 +1150,17 @@ export default function Home() {
                 <span>{samePeriodNotice}</span>
               </div>
             )}
-            <div className="oracle-hero">
-              <div className="oracle-copy">
-                <span>详细说明</span>
-                <h2>{readingOracle}</h2>
-                <p>{interpretation.evidenceSummary}</p>
-                <small>
-                  {interpretation.mainSymbol}不是测算结果，而是本题采用的传统观察依据；
-                  它所在的{issuePalace.name}及同宫的门、星、神共同形成上面的判断。
-                </small>
-              </div>
-            </div>
-            {aiReading && (
-              <div className="ai-overview">
-                <span>结合处境的综合解读</span>
-                <p>{aiReading.overview}</p>
-              </div>
-            )}
-            <div className="signal-section-heading">
+            <details className="plain-why">
+              <summary>
+                <span>想知道为什么？</span>
+                <b>查看传统盘面解释</b>
+              </summary>
               <div>
-                <span>结论依据</span>
-                <h3>下面四张卡，解释这次结论从哪里来。</h3>
+                <p>{readingOracle}</p>
+                {aiReading?.overview && <small>{aiReading.overview}</small>}
+                <button onClick={() => setResultTab("chart")}>打开命盘，查看对应位置 →</button>
               </div>
-              <p>
-                依次看：这道题的核心、你当前的状态、事情的发展、当下环境。
-                点击任意卡片，可查看它在九宫中的位置。
-              </p>
-            </div>
-            <div className="omen-signals compact-signals">
-              {interpretation.signals.map((s, index) => (
-                <button
-                  key={s.label}
-                  onClick={() => {
-                    setSelectedPalace(s.palace);
-                    setResultTab("chart");
-                  }}
-                >
-                  <i className="signal-index">0{index + 1}</i>
-                  <ToneDot tone={s.tone} />
-                  <small className="signal-label">
-                    <span>{signalPlainLanguage[s.label] || s.label}</span>
-                    <em>奇门术语 · {s.label}</em>
-                  </small>
-                  <b>{s.value}</b>
-                  <em className="signal-detail">{s.detail}</em>
-                </button>
-              ))}
-            </div>
-            <div className="book-section-heading">
-              <div>
-                <span>盘面拆解 · 按需阅读</span>
-                <h3>{isSeeking ? "寻找线索六步" : "结论的六层解释"}</h3>
-                <p>{isSeeking ? "把结论拆成主线、状态、方位、环境、遮蔽与下一步；想追线索时再看。" : "这里不是另一份预测，而是把本局结论拆成六个观察层；想追原因时再展开。"}</p>
-              </div>
-              {bookExpanded && (
-                <button onClick={() => setBookExpanded(false)}>收起细节</button>
-              )}
-            </div>
-            <div className="chapter-reading-guide">
-              <span>
-                <i>01—03</i>
-                <b>{isSeeking ? "先缩小范围" : "先认清局面"}</b>
-                <small>{isSeeking ? "主线、状态、方位" : "主运、课题、方向"}</small>
-              </span>
-              <em>→</em>
-              <span>
-                <i>04—06</i>
-                <b>{isSeeking ? "再按顺序排查" : "再寻找行动线索"}</b>
-                <small>{isSeeking ? "环境、遮蔽、下一步" : "机会、阻力、转机"}</small>
-              </span>
-              <p>{isSeeking ? "先循盘中所示的方向与藏露之象，再以最后接触、移动与收纳的现实动线逐一印证。" : "建议按顺序读；每章底部的“查看依据”会带你回到对应的九宫位置。"}</p>
-            </div>
-            <div className={`fortune-grid ${bookExpanded ? "expanded" : "collapsed"}`}>
-              {(bookExpanded ? readingChapters : readingChapters.slice(0, 3)).map((item, i) => {
-                const base =
-                  interpretation.fortuneChapters.find(
-                    (chapter) => chapter.label === item.label,
-                  ) || interpretation.fortuneChapters[i];
-                return (
-                  <button
-                    key={item.label}
-                    className={base.tone}
-                    onClick={() => {
-                      setSelectedPalace(base.palace);
-                      setResultTab("chart");
-                    }}
-                  >
-                    <i>{pad(i + 1)}</i>
-                    <small>{item.label}</small>
-                    <h4>{item.title}</h4>
-                    <p>{item.body}</p>
-                    <em>{dedupeEvidence(item.evidence)} · 查看依据 →</em>
-                  </button>
-                );
-              })}
-            </div>
-            {!bookExpanded && (
-              <button className="book-expand-button" onClick={() => setBookExpanded(true)}>
-                {isSeeking ? "继续查看 04—06 · 环境、遮蔽与寻找顺序 →" : "继续阅读 04—06 · 机会、阻力与转机 →"}
-              </button>
-            )}
-            <div className="page-turn">
-              <span>01 / 03 · 命书</span>
-              <button onClick={() => setResultTab("chart")}>
-                查看命盘依据 →
-              </button>
-            </div>
+            </details>
           </section>
         )}
 
@@ -1708,7 +1578,7 @@ export default function Home() {
             {intakeReady ? (
               <div className="intake-ready-card">
                 <span>AI整理出的最终起局问题</span>
-                <blockquote>“{question}”</blockquote>
+                <blockquote>“{displayQuestionText(question)}”</blockquote>
                 <div>
                   <small>问事类型</small><b>{topic}</b><i>·</i><small>本局重点</small><b>{focus}</b>
                 </div>
@@ -1775,50 +1645,28 @@ export default function Home() {
         </header>
         <section className="wizard-layout confirm-layout">
           <div className="wizard-intro">
-            <span>第三页 · 确认封题</span>
-            <h1>
-              一念既定，
-              <br />
-              以此刻时空起局。
-            </h1>
-            <p>确认无误后，问题将被封存。接下来进入十二步奇门起局过程。</p>
-            <div className="ai-role-note confirm">
-              <span>
-                <b>先规则起局，再依固定盘面写命书</b>
-                <small>命书会结合你的真实背景，但不会改变盘面。</small>
-              </span>
-            </div>
+            <span>起局前最后确认</span>
+            <h1>确认问题，<br />选择时间。</h1>
+            <p>确认后，将按这件事和这个时间排盘。</p>
           </div>
           <form
             className="question-console wizard-panel confirm-panel"
             onSubmit={begin}
           >
-            <div className="sealed-summary confirm-content-card">
-              <span className="confirm-card-index">01 · 这一问</span>
-              <small>{topic}</small>
-              <blockquote>“{question}”</blockquote>
-              {context && <p>{context}</p>}
-            </div>
-            <div className="ai-selection-summary confirm-content-card">
-              <span className="confirm-card-index">02 · 判断方向</span>
-              <small>系统已根据你的问题完成分类</small>
-              <div><b>{topic}</b><i>·</i><b>{focus}</b></div>
-              <p>如需改变方向，请返回对话重新说明。</p>
+            <div className="confirm-essential confirm-content-card">
+              <span className="confirm-card-index">所问</span>
+              <blockquote>“{displayQuestionText(question)}”</blockquote>
+              <small>{topic} · {focus}</small>
             </div>
             <div className="confirm-time-group confirm-content-card">
-              <div className="confirm-time-heading">
-                <span className="confirm-card-index">03 · 起局时间</span>
-                <small>时间用于确定节令、四柱和九宫位置</small>
-              </div>
+              <span className="confirm-card-index">起局时间</span>
               <div className="confirm-time-simple">
                 <div>
-                  <span>本局采用</span>
                   <b>
                     {timeMode === "now"
-                      ? "现在起局"
-                      : `${customTime.replace("T", " ")} 起局`}
+                      ? "现在（北京时间）"
+                      : customTime.replace("T", " ")}
                   </b>
-                  <small>{timeMode === "now" ? "自动取你点击开始时的北京时间" : "按你指定的北京时间成盘"}</small>
                 </div>
                 <button
                   type="button"
@@ -1861,27 +1709,8 @@ export default function Home() {
                 </label>
               </details>
             </div>
-            <div className="confirm-guidance-grid">
-              <div className="use-rule confirm-content-card">
-                <span className="confirm-card-index">04 · 本题取用</span>
-                <span>
-                  <b>{selectedTopic.name}</b>
-                  <small>
-                    {topicUsePreview[selectedTopic.name] || `${selectedTopic.hint}。本题会按这一类问题对应的传统取用方式判断。`}
-                  </small>
-                </span>
-              </div>
-              <div className="confirm-note confirm-content-card">
-                <span className="confirm-card-index">使用边界</span>
-                <b>传统文化体验</b>
-                <span>不处理生死、医疗、法律与投资涨跌等高风险问题。</span>
-              </div>
-            </div>
             {topic === "寻人寻物" && (
-              <div className="confirm-note seeking-note confirm-content-card">
-                <b>寻迹有界</b>
-                <span>近身小物取大致方位与藏露之象；贵人、机缘或远处之物，则观其来路、环境与时机。</span>
-              </div>
+              <p className="confirm-scope-line">寻物结果只给排查方向和顺序，不会定位到具体抽屉或桌角。</p>
             )}
             <div className="wizard-actions">
               <button

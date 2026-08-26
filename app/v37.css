@@ -619,3 +619,196 @@
     height: 31px;
   }
 }
+
+/* v40: subtraction pass — keep one answer, one action path and optional evidence. */
+.confirm-screen .confirm-layout {
+  grid-template-columns: minmax(220px, .52fr) minmax(0, 1fr);
+  gap: 48px;
+  width: min(1120px, calc(100% - 40px));
+}
+.confirm-screen .wizard-intro h1 {
+  max-width: 420px;
+  font-size: clamp(46px, 5vw, 72px);
+  line-height: 1.08;
+}
+.confirm-screen .wizard-intro p {
+  max-width: 360px;
+}
+.confirm-screen .confirm-panel {
+  max-width: 760px;
+  padding: 24px;
+}
+.confirm-screen .confirm-essential {
+  padding: 23px 24px;
+  border-left: 3px solid #33403b !important;
+}
+.confirm-screen .confirm-essential blockquote {
+  margin: 7px 0 12px;
+  color: #2c2d2a;
+  font: 400 clamp(21px, 2.1vw, 30px)/1.48 var(--serif);
+}
+.confirm-screen .confirm-essential > small {
+  color: #73827d;
+  font: 10px/1.5 var(--sans);
+}
+.confirm-screen .confirm-time-group {
+  margin-top: 12px;
+  padding: 18px 20px;
+}
+.confirm-screen .confirm-time-simple {
+  margin-top: 10px;
+  padding: 13px 14px;
+}
+.confirm-screen .confirm-time-simple > div > b {
+  font-size: 17px;
+}
+.confirm-screen .confirm-advanced {
+  margin-top: 10px;
+}
+.confirm-screen .confirm-scope-line {
+  margin: 12px 2px 0;
+  color: #7c7d77;
+  font: 10px/1.7 var(--sans);
+}
+
+.result-screen .result-mast {
+  gap: 18px;
+  padding: 30px 38px 28px;
+}
+.result-screen .mast-content {
+  display: block;
+}
+.result-screen .result-conclusion-block {
+  max-width: 1040px;
+  padding-top: 0;
+}
+.result-screen .mast-question-line {
+  max-width: 960px;
+  margin: 18px 0 0;
+  color: #77766f;
+  font: 12px/1.7 var(--sans);
+}
+.result-screen .mast-question-line span {
+  margin-right: 12px;
+  color: #9a7138;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+.result-screen .mast-actions {
+  width: auto;
+  margin-top: 2px;
+}
+.result-screen .mast-actions button {
+  min-width: 112px;
+}
+.result-screen .primary-action-block {
+  margin-top: 0;
+}
+.result-screen .plain-why {
+  margin-top: 28px;
+  border: 1px solid rgba(49, 48, 43, .1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .58);
+}
+.result-screen .plain-why summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 21px;
+  cursor: pointer;
+  list-style: none;
+}
+.result-screen .plain-why summary::-webkit-details-marker {
+  display: none;
+}
+.result-screen .plain-why summary span {
+  color: #8f6c3e;
+  font: 600 10px/1.4 var(--sans);
+  letter-spacing: .08em;
+}
+.result-screen .plain-why summary b {
+  color: #4b4c48;
+  font: 500 12px/1.4 var(--sans);
+}
+.result-screen .plain-why summary::after {
+  color: #8f6c3e;
+  content: "+";
+  font: 18px/1 var(--sans);
+}
+.result-screen .plain-why[open] summary::after {
+  content: "−";
+}
+.result-screen .plain-why > div {
+  padding: 0 21px 22px;
+  border-top: 1px solid rgba(49, 48, 43, .08);
+}
+.result-screen .plain-why p {
+  max-width: 920px;
+  margin: 20px 0 10px;
+  color: #3e3f3b;
+  font: 400 clamp(18px, 2vw, 25px)/1.65 var(--serif);
+}
+.result-screen .plain-why small {
+  display: block;
+  max-width: 900px;
+  color: #7a7973;
+  font: 11px/1.75 var(--sans);
+}
+.result-screen .plain-why button {
+  margin-top: 18px;
+  padding: 10px 14px;
+  border: 1px solid rgba(49, 48, 43, .12);
+  border-radius: 999px;
+  color: #6f5634;
+  background: #f7f1e5;
+  cursor: pointer;
+  font: 10px/1.3 var(--sans);
+}
+
+@media (max-width: 980px) {
+  .confirm-screen .confirm-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .confirm-screen .wizard-intro h1,
+  .confirm-screen .wizard-intro p {
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .confirm-screen .confirm-layout {
+    width: 100%;
+  }
+  .confirm-screen .wizard-intro h1 {
+    font-size: 40px;
+  }
+  .confirm-screen .confirm-panel {
+    padding: 15px;
+  }
+  .confirm-screen .confirm-essential {
+    padding: 19px 18px;
+  }
+  .result-screen .result-mast {
+    padding: 34px 18px 24px;
+  }
+  .result-screen .mast-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .result-screen .mast-actions button:last-child {
+    grid-column: auto;
+  }
+  .result-screen .plain-why summary {
+    align-items: flex-start;
+    padding: 16px;
+  }
+  .result-screen .plain-why summary b {
+    margin-left: auto;
+    text-align: right;
+  }
+  .result-screen .plain-why > div {
+    padding: 0 16px 18px;
+  }
+}
