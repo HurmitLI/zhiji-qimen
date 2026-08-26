@@ -67,6 +67,39 @@ export function intakeRuleRoute(input:string):IntakeResult|null{
       options:['换问事业选择','换问关系走向','换问人生方向'],
     };
   }
+  const hasDecisionPoint=/(?:该不该|要不要|是否|适合|应该|继续|还是|选择|决定|怎么|如何|方向|机会|阻力|发展|未来|接下来|能不能)/i.test(clean);
+  const topic=/(?:考试|学习|学业|读书|复习|课程|升学)/i.test(clean)
+    ? '学业成长'
+    : /(?:工作|事业|职业|公司|跳槽|转行|离职|入职|岗位|职位|创业)/i.test(clean)
+      ? '事业发展'
+      : /(?:感情|关系|伴侣|恋爱|婚姻|相处|复合)/i.test(clean)
+        ? '感情关系'
+        : /(?:收入|财富|生意|赚钱|资源|现金流)/i.test(clean)
+          ? '财富趋势'
+          : /(?:城市|搬家|远行|出国|迁移|换环境)/i.test(clean)
+            ? '迁移远行'
+            : /(?:项目|方案|产品|合作|推进|上线)/i.test(clean)
+              ? '项目决策'
+              : null;
+  if(topic&&hasDecisionPoint&&clean.length>=6){
+    const focus=/(?:阻力|卡住|困难|瓶颈|原因)/i.test(clean)
+      ? '识别阻力'
+      : /(?:机会|可能|来源|突破)/i.test(clean)
+        ? '找机会来源'
+        : /(?:该不该|要不要|是否|适合|应该|继续|还是|选择|决定|怎么|如何|接下来)/i.test(clean)
+          ? '决定下一步'
+          : '看未来主线';
+    return {
+      intentStatus:'supported',
+      ready:true,
+      assistantMessage:`已整理这一问，重点判断“${focus}”。`,
+      questionType:topic,
+      focus,
+      refinedQuestion:clean.slice(0,120),
+      contextSummary:'',
+      options:[],
+    };
+  }
   return null;
 }
 
