@@ -141,14 +141,14 @@ export async function POST(request:Request){
     if(!process.env.DEEPSEEK_API_KEY&&process.env.NODE_ENV==='development')return proxyToVefaasAi(raw);
     if(body.mode==='intake'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请先写下想问的事情'},{status:400});
+      const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-6).map(item=>({role:item.role==='assistant'?'assistant' as const:'user' as const,content:String(item.content||'').slice(0,600)}));
       const boundary=intakeBoundaryReply(body.question);
       if(boundary)return Response.json({
         mode:'intake',intentStatus:'unsupported',ready:false,assistantMessage:boundary.message,
         questionType:'不适用',focus:'不适用',refinedQuestion:body.question.slice(0,120),contextSummary:'',options:boundary.options,
       });
-      const routed=intakeRuleRoute(body.question);
+      const routed=intakeRuleRoute(body.question,messages);
       if(routed)return Response.json({mode:'intake',...routed});
-      const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-6).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
       const userTurnCount=messages.filter(item=>item.role==='user').length;
       const firstTurn=userTurnCount<=1;
       const task=firstTurn
@@ -160,10 +160,10 @@ export async function POST(request:Request){
 - “矿泉水瓶在哪”必须识别为近身寻物，不能归入人生方向，也不能声称能落到具体桌角或柜缝；“我的贵人从哪里来”属于贵人寻访，可以看方位、环境和时机；“该不该转行”归事业发展；“是否适合换城市”归迁移远行。
 - 当需要交代近身寻物边界时，使用克制的传统先生口吻，例如“近身小物，落处随手而移，盘中宜取其象，不宜落到寸尺”；不要生硬地说“算不准”“不能算”或堆砌免责声明。
 - 问题已经具体时ready=true；只有问题过宽、包含多个主题或缺少关键取舍对象时，ready=false并且只反问一个关键问题，给2到4个短选项。`
-        : `任务：这是用户对唯一一次澄清的补充。先重新判断意图状态：支持或象意支持时必须完成定题，ready=true、options为空，不得继续追问；高风险或不支持时ready=false并说明边界，绝不能为了结束对话而强行归类。assistantMessage只能是陈述句，不得再索取信息。`;
+        : `任务：这是用户对定题提示的补充。先重新判断意图状态，只有已经出现明确对象、现实事项或待比较选择时才能ready=true。若用户仍只重复时间、只给一个宽泛类别或转到新主题，ready=false，只指出当前还缺的一个关键点并给2到4个可直接选择的完整句子。不得复述上一条回复，也不得为了结束对话而强行归类。`;
       const result=await createResponse({messages,currentQuestion:body.question.slice(0,600)},`${baseInstructions}\n${task}\nquestionType和focus只有在支持时才选择具体项；不支持或高风险时必须使用“不适用”。contextSummary只记录用户明确说过的现实背景，不得杜撰。refinedQuestion保留用户原意。`,intakeSchema,1000) as unknown as IntakeResult;
       const canStart=result.intentStatus==='supported'||result.intentStatus==='supported_symbolic';
-      const ready=canStart&&((!firstTurn)||Boolean(result.ready)&&!intakeResponseStillAsking(result));
+      const ready=canStart&&Boolean(result.ready)&&!intakeResponseStillAsking(result);
       return Response.json({
         mode:'intake',
         ...result,

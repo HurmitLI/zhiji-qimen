@@ -460,7 +460,7 @@ export default function Home() {
   const [intakeOptions, setIntakeOptions] = useState<string[]>([]);
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeReady, setIntakeReady] = useState(false);
-  const [intakeIntentStatus, setIntakeIntentStatus] = useState<IntakeIntentStatus | null>(null);
+  const [, setIntakeIntentStatus] = useState<IntakeIntentStatus | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -712,7 +712,7 @@ export default function Home() {
       setIntakeIntentStatus(boundary.preserveReady && hasSubstantiveQuestion ? "supported" : "unsupported");
       return;
     }
-    const routed = intakeRuleRoute(clean);
+    const routed = intakeRuleRoute(clean, existingMessages);
     if (routed) {
       setIntakeMessages([
         ...nextMessages,
@@ -844,25 +844,6 @@ export default function Home() {
     const value = (option || intakeInput).trim();
     if (!value) return;
     void askIntake(value);
-  }
-  function skipIntakeQuestion() {
-    if (
-      intakeLoading ||
-      intakeReady ||
-      intakeIntentStatus === "unsupported" ||
-      intakeIntentStatus === "high_risk"
-    ) return;
-    setIntakeOptions([]);
-    setIntakeReady(true);
-    setIntakeIntentStatus("supported");
-    setAiError("");
-    setIntakeMessages((messages) => [
-      ...messages,
-      {
-        role: "assistant",
-        content: `不再继续追问。我会按你目前提供的信息，将这一问归入“${topic}”，重点看“${focus}”。确认后即可起局。`,
-      },
-    ]);
   }
   async function submitFollowup(e?: FormEvent, quickQuestion?: string) {
     e?.preventDefault();
@@ -1633,7 +1614,7 @@ export default function Home() {
           <div className="intake-entry-copy">
             <span>问事 · 第一步</span>
             <h1>只管说你想算的事。</h1>
-            <p>不用先选分类，也不用研究奇门术语。先把真实处境说出来，再用一两个关键问题把这一局定清楚。</p>
+            <p>这里只做起局前定题，不会在这里解读结果。你先写下真实处境，AI会判断问事类型；信息不够时，只补问一个关键点。</p>
           </div>
           <form className="intake-single-box" onSubmit={startIntake}>
             <textarea
@@ -1645,9 +1626,9 @@ export default function Home() {
               aria-label="写下想算的事情"
             />
             <div>
-              <small>{question.length}/600 · 写清处境后，会继续追问关键点</small>
+              <small>{question.length}/600 · 下一步只整理问题，不提前分析结果</small>
               <button disabled={question.trim().length < 2}>
-                继续梳理 <i>→</i>
+                进入定题 <i>→</i>
               </button>
             </div>
           </form>
@@ -1672,60 +1653,56 @@ export default function Home() {
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>问事官</small>
+              <small>定题助手</small>
             </span>
           </div>
-          <div className="intake-status"><i /> 正在为这一局定题</div>
+          <div className="intake-status"><i /> 第 2 步 · 只定题，不解读</div>
           <button className="ghost-button" onClick={() => setScreen("question")}>重新描述</button>
         </header>
         <section className="intake-chat-layout">
           <aside>
-            <span>问事定题</span>
-            <h1>先听懂你，<br />再开始算。</h1>
-            <p>这一步只负责理解问题和选择取用方向，不参与排盘，也不会提前给出结果。</p>
+            <span>起局前 · 定题</span>
+            <h1>把一件事，<br />问清楚。</h1>
+            <p>这里不是普通聊天。AI只把你的描述整理成一条可起局的问题，不会在这里回答结果。</p>
             <ol>
-              <li className="done">说出困惑</li>
-              <li className={intakeReady ? "done" : "active"}>追问关键点</li>
-              <li className={intakeReady ? "active" : ""}>确认这一问</li>
+              <li className="done">已收到原问题</li>
+              <li className={intakeReady ? "done" : "active"}>必要时补一个关键点</li>
+              <li className={intakeReady ? "active" : ""}>确认后进入起局</li>
             </ol>
           </aside>
           <div className="intake-conversation">
+            <div className="intake-purpose-note">
+              <div><small>当前任务</small><b>整理最终起局问题</b></div>
+              <p><span>AI会做：</span>判断问事类型、补齐一个必要信息。<span>AI不会做：</span>在这里预测结果或持续闲聊。</p>
+            </div>
             <div className="intake-chat-stream" aria-live="polite">
-              <div className="intake-ai-intro">
-                <span className="ink-avatar adviser" aria-label="问事官"><i>问</i></span>
-                <p>你不需要先判断这属于事业、感情还是人生方向。把真实处境告诉我，我会替你完成分类。</p>
-              </div>
               {intakeMessages.map((message, index) => (
                 <div className={`intake-message ${message.role}`} key={`${message.role}-${index}`}>
-                  <span
-                    className={`ink-avatar ${message.role === "user" ? "seeker" : "adviser"}`}
-                    aria-label={message.role === "user" ? "我" : "问事官"}
-                  >
-                    <i>{message.role === "user" ? "我" : "问"}</i>
-                  </span>
+                  <small className="intake-speaker">{message.role === "user" ? "你提供的信息" : "定题助手"}</small>
                   <p>{message.content}</p>
                 </div>
               ))}
               {intakeLoading && (
-                <div className="intake-thinking"><i /><span>正在理解你真正想问的事…</span></div>
+                <div className="intake-thinking"><i /><span>正在判断是否还缺一个关键信息…</span></div>
               )}
             </div>
             {intakeOptions.length > 0 && !intakeLoading && (
               <div className="intake-choice-row">
-                {intakeOptions.map((option) => (
+                <small>选最接近的一项；点选后会直接作为补充提交</small>
+                <div>{intakeOptions.map((option) => (
                   <button key={option} onClick={() => submitIntakeReply(undefined, option)}>{option}</button>
-                ))}
+                ))}</div>
               </div>
             )}
             {intakeReady ? (
               <div className="intake-ready-card">
-                <span>这一问已经定清</span>
+                <span>AI整理出的最终起局问题</span>
                 <blockquote>“{question}”</blockquote>
                 <div>
-                  <b>{topic}</b><i>·</i><b>{focus}</b>
+                  <small>问事类型</small><b>{topic}</b><i>·</i><small>本局重点</small><b>{focus}</b>
                 </div>
                 <div className="intake-ready-actions">
-                  <button onClick={() => setScreen("confirm")}>确认这一问，准备起局 →</button>
+                  <button onClick={() => setScreen("confirm")}>确认定题，进入起局设置 →</button>
                   <button
                     className="secondary"
                     onClick={() => {
@@ -1734,31 +1711,28 @@ export default function Home() {
                       setAiError("");
                     }}
                   >
-                    我还想补充
+                    修改这句话
                   </button>
                 </div>
               </div>
             ) : (
               <div className="intake-reply-area">
+                <div className="intake-reply-head">
+                  <b>补充一条与这件事直接相关的信息</b>
+                  <span>不用和它聊天；回答当前缺少的那一点即可</span>
+                </div>
                 <form className="intake-reply-box" onSubmit={submitIntakeReply}>
                   <textarea
                     value={intakeInput}
                     onChange={(e) => setIntakeInput(e.target.value)}
                     maxLength={600}
-                    placeholder="也可以直接补充你的真实想法……"
+                    placeholder="例如：明天要谈一个新工作；要找的是车钥匙……"
                   />
-                  <button disabled={intakeLoading || intakeInput.trim().length < 2}>发送 <i>↑</i></button>
+                  <button disabled={intakeLoading || intakeInput.trim().length < 2}>提交补充 <i>↑</i></button>
                 </form>
-                {!intakeLoading && intakeMessages.some((message) => message.role === "assistant") && (
-                  intakeIntentStatus !== "unsupported" &&
-                  intakeIntentStatus !== "high_risk" &&
-                  <button className="intake-skip-button" onClick={skipIntakeQuestion}>
-                    跳过追问，直接按当前问题起局 →
-                  </button>
-                )}
               </div>
             )}
-            {aiError && <small className="intake-error">刚才短暂失去响应，你仍可以选择一个方向继续。</small>}
+            {aiError && <small className="intake-error">刚才短暂失去响应。可点选上方选项，或重新提交一条补充。</small>}
           </div>
         </section>
       </main>
@@ -1985,7 +1959,7 @@ export default function Home() {
         </div>
         <div className="home-feature-list">
           {[
-            ["壹", "先把纠结整理成真正的一问", "你只需说出真实处境。问事官会继续追问关键点，判断这是事业、关系、迁移还是人生方向。"],
+            ["壹", "先把纠结整理成真正的一问", "你只需说出真实处境。定题助手会判断问事类型，必要时只补问一个关键点。"],
             ["贰", "一个问题，只起一张真实时间盘", "节令、四柱、阴阳遁、局数、九宫与值使都由规则计算，不会为了迎合答案而修改。"],
             ["叁", "从封题到成局，十二步全部可见", "不是播放一段与结果无关的视频。每一步演出都对应同一张盘的真实计算输出。"],
             ["肆", "命书不是终点，还能沿着同一局追问", "同局追问会保留原问题、盘面与命书，继续回答阻力、机会与下一步怎么验证。"],

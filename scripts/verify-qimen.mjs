@@ -27,6 +27,26 @@ assert.equal(classifySeekScope('未来三个月更适合稳住当前工作，还
 assert.equal(intakeRuleRoute('未来三个月更适合稳住当前工作，还是主动寻找新机会？'), null);
 assert.equal(intakeRuleRoute('我该不该转行'), null);
 assert.equal(intakeRuleRoute('这只股票明天会涨到多少钱')?.intentStatus, 'high_risk');
+
+const broadTomorrow = intakeRuleRoute('我明天的运势怎么样');
+assert.equal(broadTomorrow?.ready, false);
+assert.equal(broadTomorrow?.options.length, 3);
+assert.match(broadTomorrow?.assistantMessage || '', /具体|一件/);
+
+const repeatedTomorrow = intakeRuleRoute('就是明天的', [
+  { role: 'user', content: '我明天的运势怎么样' },
+  { role: 'assistant', content: broadTomorrow?.assistantMessage || '' },
+]);
+assert.equal(repeatedTomorrow?.ready, false);
+assert.match(repeatedTomorrow?.assistantMessage || '', /已经记住/);
+
+const bareSeek = intakeRuleRoute('寻物');
+assert.equal(bareSeek?.ready, false);
+assert.equal(bareSeek?.questionType, '寻人寻物');
+assert.match(bareSeek?.assistantMessage || '', /找的是什么/);
+assert.equal(intakeRuleRoute('我要找钥匙或证件')?.ready, true);
+assert.equal(intakeRuleRoute('我要找一位失联的联系人')?.intentStatus, 'supported_symbolic');
+assert.match(intakeRuleRoute('我要找一位失联的联系人')?.assistantMessage || '', /来路|时机/);
 for (let stage = 0; stage <= 10; stage += 1) {
   assert.equal(mediaForStage(stage, '开门'), ritualMedia.intro, `第 ${stage} 步不得切换或重播通用动画`);
 }
