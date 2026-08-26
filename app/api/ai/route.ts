@@ -141,7 +141,7 @@ export async function POST(request:Request){
 - 当需要交代近身寻物边界时，使用克制的传统先生口吻，例如“近身小物，落处随手而移，盘中宜取其象，不宜落到寸尺”；不要生硬地说“算不准”“不能算”或堆砌免责声明。
 - 问题已经具体时ready=true；只有问题过宽、包含多个主题或缺少关键取舍对象时，ready=false并且只反问一个关键问题，给2到4个短选项。`
         : `任务：这是用户对唯一一次澄清的补充。先重新判断意图状态：支持或象意支持时必须完成定题，ready=true、options为空，不得继续追问；高风险或不支持时ready=false并说明边界，绝不能为了结束对话而强行归类。assistantMessage只能是陈述句，不得再索取信息。`;
-      const result=await createResponse({messages,currentQuestion:body.question.slice(0,600)},`${baseInstructions}\n${task}\nquestionType和focus只有在支持时才选择具体项；不支持或高风险时必须使用“不适用”。contextSummary只记录用户明确说过的现实背景，不得杜撰。refinedQuestion保留用户原意。assistantMessage只用于呈现“需要确认的一个重点”，不要复述用户原话、解释分类或扮演顾问；ready=true时只需给出极短状态句。`,intakeSchema,1000) as unknown as IntakeResult;
+      const result=await createResponse({messages,currentQuestion:body.question.slice(0,600)},`${baseInstructions}\n${task}\nquestionType和focus只有在支持时才选择具体项；不支持或高风险时必须使用“不适用”。contextSummary只记录用户明确说过的现实背景，不得杜撰。refinedQuestion保留用户原意。`,intakeSchema,1000) as unknown as IntakeResult;
       const canStart=result.intentStatus==='supported'||result.intentStatus==='supported_symbolic';
       const ready=canStart&&((!firstTurn)||Boolean(result.ready)&&!intakeResponseStillAsking(result));
       return Response.json({
@@ -151,8 +151,8 @@ export async function POST(request:Request){
         options:ready?[]:result.options,
         assistantMessage:ready
           ? result.intentStatus==='supported_symbolic'
-            ? `已整理为“${result.refinedQuestion}”，取用方向为“${result.questionType}”。`
-            : `已整理为“${result.refinedQuestion}”，重点判断“${result.focus}”。`
+            ? `此念已定为“${result.questionType}”。盘中取其方、取其象、取其先后；近身小物不落寸尺，贵人与远方目标则观其来路与应期。确认后即可起局。`
+            : `你的问题已经足够具体，我已完成定题。已归入“${result.questionType}”，重点看“${result.focus}”。确认后即可起局。`
           : result.assistantMessage,
       });
     }

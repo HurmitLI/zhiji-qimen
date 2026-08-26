@@ -593,8 +593,10 @@ export default function Home() {
     focus,
     generateAiReading,
   ]);
-  function buildCurrentChart(date = timeMode === "now" ? beijingNow() : new Date(customTime)) {
-    return buildQimenChart({
+  function begin(e: FormEvent) {
+    e.preventDefault();
+    const date = timeMode === "now" ? beijingNow() : new Date(customTime);
+    const next = buildQimenChart({
       date,
       questionType: topic,
       question: question.trim(),
@@ -602,8 +604,6 @@ export default function Home() {
       focus,
       context: context.trim(),
     });
-  }
-  function updateSamePeriodNotice(next: QimenChart) {
     const nextMinutes = wallClockMinutes(next.input.time);
     const priorInSamePeriod = history.find((item) => {
       const difference = Math.abs(
@@ -623,55 +623,17 @@ export default function Home() {
     } else {
       setSamePeriodNotice("");
     }
-  }
-  function prepareChart(next: QimenChart) {
-    updateSamePeriodNotice(next);
     setChart(next);
     setStage(0);
     setPaused(false);
+    setSoundMuted(false);
     setAiReading(null);
     setAiError("");
     setChatMessages([]);
     setChatInput("");
+    setScreen("ritual");
     setChecks([false, false, false]);
     window.scrollTo({ top: 0 });
-  }
-  function recordReading(nextChart: QimenChart) {
-    setHistory((list) => {
-      const item = {
-        id: `${nextChart.input.time}-${Date.now()}`,
-        chart: nextChart,
-        focus: nextChart.input.focus || focus,
-      };
-      const next = [item, ...list.filter((x) => x.id !== item.id)].slice(0, 6);
-      localStorage.setItem("yiju-readings", JSON.stringify(next));
-      return next;
-    });
-  }
-  function startRitual(next: QimenChart) {
-    prepareChart(next);
-    setSoundMuted(false);
-    setScreen("ritual");
-  }
-  function showResultDirectly(next: QimenChart) {
-    prepareChart(next);
-    recordReading(next);
-    setSoundMuted(true);
-    setResultTab("book");
-    setBookExpanded(false);
-    setSelectedPalace(interpretChart(next).issuePalace);
-    setScreen("result");
-    void generateAiReading(next);
-  }
-  function begin(e: FormEvent) {
-    e.preventDefault();
-    startRitual(buildCurrentChart());
-  }
-  function beginNowDirectly() {
-    showResultDirectly(buildCurrentChart(beijingNow()));
-  }
-  function beginNowWithRitual() {
-    startRitual(buildCurrentChart(beijingNow()));
   }
   function reset() {
     setScreen("landing");
@@ -693,7 +655,6 @@ export default function Home() {
     setAiError("");
     setChatMessages([]);
     setSamePeriodNotice("");
-    setTimeMode("now");
     window.scrollTo({ top: 0 });
   }
   function restore(item: SavedReading) {
@@ -882,6 +843,25 @@ export default function Home() {
     const value = (option || intakeInput).trim();
     if (!value) return;
     void askIntake(value);
+  }
+  function skipIntakeQuestion() {
+    if (
+      intakeLoading ||
+      intakeReady ||
+      intakeIntentStatus === "unsupported" ||
+      intakeIntentStatus === "high_risk"
+    ) return;
+    setIntakeOptions([]);
+    setIntakeReady(true);
+    setIntakeIntentStatus("supported");
+    setAiError("");
+    setIntakeMessages((messages) => [
+      ...messages,
+      {
+        role: "assistant",
+        content: `不再继续追问。我会按你目前提供的信息，将这一问归入“${topic}”，重点看“${focus}”。确认后即可起局。`,
+      },
+    ]);
   }
   async function submitFollowup(e?: FormEvent, quickQuestion?: string) {
     e?.preventDefault();
@@ -1119,6 +1099,17 @@ export default function Home() {
               <b>{verdict.title}</b>
               <small>{verdict.condition}</small>
             </div>
+            {chart.input.context && (
+              <div className="result-context-block">
+                <span>你的处境</span>
+                <small>{chart.input.context}</small>
+              </div>
+            )}
+            <div className="reading-badges">
+              <span><i>✓</i> 规则盘面已生成</span>
+              {aiReading && <b><i>✓</i> 处境解读已生成</b>}
+              {aiLoading && <em><i /> 处境解读生成中</em>}
+            </div>
             {isSeeking && (
               <small className="symbolic-scope-note">
                 寻迹有界 · 近身小物取其方与象，不落到寸尺；贵人与远方目标观其来路与时机
@@ -1134,10 +1125,11 @@ export default function Home() {
                 setSoundMuted(false);
               }}
             >
-              查看排盘过程
+              重看起局
             </button>
+            <button onClick={() => setRulesOpen(true)}>规则说明</button>
             <button onClick={copySummary}>
-              {copied ? "摘要已复制" : "分享摘要"}
+              {copied ? "命书已复制" : "分享命书摘要"}
             </button>
             <button className="mobile-reset" onClick={reset}>
               新起一局
@@ -1147,52 +1139,13 @@ export default function Home() {
         {resultTab === "book" && (
           <section className="result-view book-page unified-book-page">
             <div className="page-kicker">
-              <span>先看重点</span>
-              <b>一个行动、两条依据，足够开始验证</b>
+              <span>结论之后</span>
+              <b>先把行动带回现实，再按需要查看盘面解释</b>
             </div>
-            <div className="result-brief-grid">
-              <div className="brief-next-action">
-                <span>现在先做这一件事</span>
-                <h3>{readingActions[0]}</h3>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={checks[0]}
-                    onChange={() => setChecks((list) => list.map((value, index) => index === 0 ? !value : value))}
-                  />
-                  <i>{checks[0] ? "✓" : "01"}</i>
-                  <b>{checks[0] ? "已完成" : "完成后再看下一步"}</b>
-                </label>
-              </div>
-              <div className="brief-evidence">
-                <span>为什么这样判断</span>
-                {interpretation.signals.slice(0, 2).map((signal, index) => (
-                  <button
-                    key={signal.label}
-                    onClick={() => {
-                      setSelectedPalace(signal.palace);
-                      setResultTab("chart");
-                    }}
-                  >
-                    <i>0{index + 1}</i>
-                    <small>{signalPlainLanguage[signal.label] || signal.label}</small>
-                    <b>{signal.value}</b>
-                    <em>查看盘面位置 →</em>
-                  </button>
-                ))}
-              </div>
-            </div>
-            {aiLoading && <small className="brief-ai-status"><i /> 正在补充结合处境的说明，基础结论已可阅读</small>}
-            <details className="full-reading-disclosure">
-              <summary>
-                <span>查看完整命书与盘面解释</span>
-                <small>其余行动、完整解读、四项依据与六层说明</small>
-              </summary>
-              <div className="full-reading-content">
             <div className="book-action-block primary-action-block">
               <div className="book-action-heading">
                 <span>本局最重要的部分</span>
-                <h3>完整行动清单</h3>
+                <h3>接下来，先做这三件事</h3>
                 <p>结论只有落到现实动作才有用。先完成能够验证、能够撤回的步骤，再决定是否继续投入。</p>
               </div>
               <div className="book-action-list">
@@ -1345,8 +1298,6 @@ export default function Home() {
                 查看命盘依据 →
               </button>
             </div>
-              </div>
-            </details>
           </section>
         )}
 
@@ -1681,7 +1632,7 @@ export default function Home() {
           <div className="intake-entry-copy">
             <span>问事 · 第一步</span>
             <h1>只管说你想算的事。</h1>
-            <p>不用先选分类，也不用研究奇门术语。把这一件事写清楚，系统会替你整理成适合起局的问题。</p>
+            <p>不用先选分类，也不用研究奇门术语。先把真实处境说出来，再用一两个关键问题把这一局定清楚。</p>
           </div>
           <form className="intake-single-box" onSubmit={startIntake}>
             <textarea
@@ -1693,9 +1644,9 @@ export default function Home() {
               aria-label="写下想算的事情"
             />
             <div>
-              <small>{question.length}/600 · 系统只会在必要时确认一个重点</small>
+              <small>{question.length}/600 · 写清处境后，会继续追问关键点</small>
               <button disabled={question.trim().length < 2}>
-                整理这一问 <i>→</i>
+                继续梳理 <i>→</i>
               </button>
             </div>
           </form>
@@ -1711,95 +1662,106 @@ export default function Home() {
       </main>
     );
 
-  if (screen === "intake") {
-    const intakePrompt = [...intakeMessages]
-      .reverse()
-      .find((message) => message.role === "assistant")?.content;
+  if (screen === "intake")
     return (
-      <main className="app-shell intake-brief-screen">
+      <main className="app-shell intake-chat-screen">
         <div className="noise" />
         <header className="topbar oracle-topbar">
           <div className="brand">
             <i>壹</i>
             <span>
               <b>一局</b>
-              <small>智能定题</small>
+              <small>问事官</small>
             </span>
           </div>
-          <div className="intake-status"><i /> 正在整理这一问</div>
-          <button className="ghost-button" onClick={() => setScreen("question")}>修改原问题</button>
+          <div className="intake-status"><i /> 正在为这一局定题</div>
+          <button className="ghost-button" onClick={() => setScreen("question")}>重新描述</button>
         </header>
-        <section className="intake-brief-layout">
+        <section className="intake-chat-layout">
           <aside>
-            <span>智能定题</span>
-            <h1>这里只整理问题，<br />不在这里解答。</h1>
-            <p>系统只确认这次起局要看什么。问题具体时直接进入结果，只有模糊时才确认一个重点。</p>
+            <span>问事定题</span>
+            <h1>先听懂你，<br />再开始算。</h1>
+            <p>这一步只负责理解问题和选择取用方向，不参与排盘，也不会提前给出结果。</p>
             <ol>
-              <li className="done">写下一件事</li>
-              <li className={intakeReady ? "done" : "active"}>必要时确认一个重点</li>
-              <li className={intakeReady ? "active" : ""}>核对后起局</li>
+              <li className="done">说出困惑</li>
+              <li className={intakeReady ? "done" : "active"}>追问关键点</li>
+              <li className={intakeReady ? "active" : ""}>确认这一问</li>
             </ol>
           </aside>
-          <div className="intake-brief-panel" aria-live="polite">
-            {intakeLoading ? (
-              <div className="intake-brief-loading">
-                <i />
-                <span>
-                  <b>正在判断是否需要补充一个重点</b>
-                  <small>这一步只整理问题，不会提前生成答案。</small>
-                </span>
+          <div className="intake-conversation">
+            <div className="intake-chat-stream" aria-live="polite">
+              <div className="intake-ai-intro">
+                <span className="ink-avatar adviser" aria-label="问事官"><i>问</i></span>
+                <p>你不需要先判断这属于事业、感情还是人生方向。把真实处境告诉我，我会替你完成分类。</p>
               </div>
-            ) : intakeReady ? (
-              <div className="intake-summary-card">
-                <span>系统已整理这一问</span>
+              {intakeMessages.map((message, index) => (
+                <div className={`intake-message ${message.role}`} key={`${message.role}-${index}`}>
+                  <span
+                    className={`ink-avatar ${message.role === "user" ? "seeker" : "adviser"}`}
+                    aria-label={message.role === "user" ? "我" : "问事官"}
+                  >
+                    <i>{message.role === "user" ? "我" : "问"}</i>
+                  </span>
+                  <p>{message.content}</p>
+                </div>
+              ))}
+              {intakeLoading && (
+                <div className="intake-thinking"><i /><span>正在理解你真正想问的事…</span></div>
+              )}
+            </div>
+            {intakeOptions.length > 0 && !intakeLoading && (
+              <div className="intake-choice-row">
+                {intakeOptions.map((option) => (
+                  <button key={option} onClick={() => submitIntakeReply(undefined, option)}>{option}</button>
+                ))}
+              </div>
+            )}
+            {intakeReady ? (
+              <div className="intake-ready-card">
+                <span>这一问已经定清</span>
                 <blockquote>“{question}”</blockquote>
-                {context && <p>{context}</p>}
-                <div className="intake-summary-tags">
-                  <b>{topic}</b>
-                  <i>重点</i>
-                  <b>{focus}</b>
+                <div>
+                  <b>{topic}</b><i>·</i><b>{focus}</b>
                 </div>
-                <div className="intake-summary-actions">
-                  <button onClick={beginNowDirectly}>直接看结果 <i>→</i></button>
-                  <button className="secondary" onClick={beginNowWithRitual}>观看排盘过程</button>
-                  <button className="text" onClick={() => setScreen("confirm")}>调整时间或地点</button>
+                <div className="intake-ready-actions">
+                  <button onClick={() => setScreen("confirm")}>确认这一问，准备起局 →</button>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setIntakeReady(false);
+                      setIntakeOptions([]);
+                      setAiError("");
+                    }}
+                  >
+                    我还想补充
+                  </button>
                 </div>
-                <button className="intake-edit-question" onClick={() => setScreen("question")}>原问题不准确，返回修改</button>
               </div>
             ) : (
-              <div className="intake-clarify-card">
-                <span>还需要确认一个重点</span>
-                <h2>{intakePrompt || "这次更想判断哪一部分？"}</h2>
-                {intakeOptions.length > 0 && (
-                  <div className="intake-option-grid">
-                    {intakeOptions.map((option) => (
-                      <button key={option} onClick={() => submitIntakeReply(undefined, option)}>{option}</button>
-                    ))}
-                  </div>
-                )}
-                {intakeIntentStatus !== "unsupported" && intakeIntentStatus !== "high_risk" && (
-                  <form className="intake-clarify-form" onSubmit={submitIntakeReply}>
-                    <label htmlFor="intake-detail">选项都不合适？补充一个判断重点</label>
-                    <div>
-                      <input
-                        id="intake-detail"
-                        value={intakeInput}
-                        onChange={(e) => setIntakeInput(e.target.value)}
-                        maxLength={600}
-                        placeholder="例如：更想知道是否该继续投入"
-                      />
-                      <button disabled={intakeInput.trim().length < 2}>更新理解</button>
-                    </div>
-                  </form>
+              <div className="intake-reply-area">
+                <form className="intake-reply-box" onSubmit={submitIntakeReply}>
+                  <textarea
+                    value={intakeInput}
+                    onChange={(e) => setIntakeInput(e.target.value)}
+                    maxLength={600}
+                    placeholder="也可以直接补充你的真实想法……"
+                  />
+                  <button disabled={intakeLoading || intakeInput.trim().length < 2}>发送 <i>↑</i></button>
+                </form>
+                {!intakeLoading && intakeMessages.some((message) => message.role === "assistant") && (
+                  intakeIntentStatus !== "unsupported" &&
+                  intakeIntentStatus !== "high_risk" &&
+                  <button className="intake-skip-button" onClick={skipIntakeQuestion}>
+                    跳过追问，直接按当前问题起局 →
+                  </button>
                 )}
               </div>
             )}
-            {aiError && !intakeReady && <small className="intake-error">网络响应较慢，可以先选择最接近的判断重点。</small>}
+            {aiError && <small className="intake-error">刚才短暂失去响应，你仍可以选择一个方向继续。</small>}
           </div>
         </section>
       </main>
     );
-  }
 
   if (screen === "confirm")
     return (
@@ -2022,7 +1984,7 @@ export default function Home() {
         </div>
         <div className="home-feature-list">
           {[
-            ["壹", "先把纠结整理成真正的一问", "你只需说出真实处境。问题明确时直接起局，只有过于宽泛时才确认一个重点。"],
+            ["壹", "先把纠结整理成真正的一问", "你只需说出真实处境。问事官会继续追问关键点，判断这是事业、关系、迁移还是人生方向。"],
             ["贰", "一个问题，只起一张真实时间盘", "节令、四柱、阴阳遁、局数、九宫与值使都由规则计算，不会为了迎合答案而修改。"],
             ["叁", "从封题到成局，十二步全部可见", "不是播放一段与结果无关的视频。每一步演出都对应同一张盘的真实计算输出。"],
             ["肆", "命书不是终点，还能沿着同一局追问", "同局追问会保留原问题、盘面与命书，继续回答阻力、机会与下一步怎么验证。"],
@@ -2068,7 +2030,7 @@ export default function Home() {
         <div className="qimen-system-grid">
           <article><i>天</i><h3>天时</h3><p>节令、四柱、阴阳遁与局数，固定这一刻的时空底盘。</p></article>
           <article><i>地</i><h3>九宫</h3><p>三奇六仪、九星、八门与八神依规则旋布，各有落宫。</p></article>
-          <article><i>人</i><h3>所问</h3><p>智能定题只用于判断取用方向，同一时间不会因此改成另一张盘。</p></article>
+          <article><i>人</i><h3>所问</h3><p>对话只用于判断取用方向，同一时间不会因此改成另一张盘。</p></article>
           <article><i>神</i><h3>命书</h3><p>把传统象意翻译成与你处境相关、可以继续追问的现代语言。</p></article>
         </div>
       </section>
