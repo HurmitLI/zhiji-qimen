@@ -176,7 +176,7 @@ export function interpretChart(chart:QimenChart){
       ? '但主体与事情之间的承接偏弱，先补足时间、能力或资源，再扩大动作。'
       : '';
   const decisionBody=isSeeking
-    ? `按传统象意，优先留意${issue.direction}方向及与“${issue.element}”相关的环境特征；同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}。这只是缩小寻找顺序的象意线索，不是对物品位置的精确定位。`
+    ? `寻迹不落寸尺，先取其方与象。优先留意${issue.direction}方向及与“${issue.element}”相关的环境特征；同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}，可据此排定寻找先后。`
     : `${baseDecision.body}${decisionConstraint}`;
   const evidenceSummary=`本题按“${profile.label}”取用，观察${primarySymbol}；它落${issue.direction}${issue.name}，同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}。`;
   const matterText=doorMeaning[matter.door||'']||starMeaning[matter.star||'']||'当前动态仍需现实反馈确认';
@@ -184,9 +184,9 @@ export function interpretChart(chart:QimenChart){
   const chanceTitle=mainTone==='bright'?'条件已出现可验证的入口':mainTone==='caution'?'先解除主用神所在宫的限制':'从连续反馈中确认方向';
   const blockTitle=chart.kongwangPalaces.includes(issue.palace)?'主用神临空，先防承诺落空':cautionDoors.has(issue.door||'')?'主用神所在宫推进成本偏高':'不要让模糊代替判断';
   const fortuneChapters:FortuneChapter[]=isSeeking?[
-    {label:'寻找主线',title:`${primarySymbol} · ${issue.direction}`,body:`寻人寻物先看时干所在宫。当前象意先指向${issue.direction}${issue.name}，把它作为第一轮排查方向，不理解成精确坐标。`,evidence:`主用${primarySymbol} / ${issue.name} / ${issue.door||'无门'}`,palace:issue.palace,tone:mainTone},
+    {label:'寻找主线',title:`${primarySymbol} · ${issue.direction}`,body:`寻人寻物先看时干所在宫。当前象意先指向${issue.direction}${issue.name}，把它作为第一轮寻迹之向，不落到某个桌角或柜缝。`,evidence:`主用${primarySymbol} / ${issue.name} / ${issue.door||'无门'}`,palace:issue.palace,tone:mainTone},
     {label:'对象状态',title:`${issue.door||issue.star||issue.name} · ${toneLabel}`,body:`${issueText}。它描述的是物品或对象可能呈现的状态与遮蔽方式，只用于安排寻找先后。`,evidence:`${issue.name} / ${issue.star||'—'} / ${issue.god||'—'}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},
-    {label:'优先方位',title:`${issue.direction} · ${issue.element}象`,body:`先检查相对当前位置的${issue.direction}侧，再留意与${issue.element}象相关、被遮挡或容易忽略的区域；不要把方位理解成地图定位。`,evidence:`主用${primarySymbol} / ${issue.name} / 五行${issue.element}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},
+    {label:'优先方位',title:`${issue.direction} · ${issue.element}象`,body:`先看相对当前位置的${issue.direction}侧，再留意与${issue.element}象相关、被遮挡或容易忽略的区域；此处所示为寻迹先后，不是门牌与坐标。`,evidence:`主用${primarySymbol} / ${issue.name} / 五行${issue.element}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},
     {label:'环境特征',title:auxiliaryText||`${matter.direction}${matter.name}`,body:`事情宫落${matter.direction}${matter.name}：${matterText}。${auxiliaryText||'再结合玄武和门的状态观察遮蔽、收纳与遗忘线索'}。`,evidence:`时干${timeStem.stem} / ${matter.name}${auxiliaryText?` / ${auxiliaryText}`:''}`,palace:matter.palace,tone:scoreTone(palaceScore(matter,chart))},
     {label:'主要遮蔽',title:chart.kongwangPalaces.includes(issue.palace)?'线索可能与预想有落差':blockTitle,body:`${chart.kongwangPalaces.includes(issue.palace)?'主用宫临空亡，先检查记忆是否偏差、物品是否已被移动。':'优先排除被覆盖、被收纳、视线死角和最后使用后随手放置的位置。'}`,evidence:`${primarySymbol} / ${issue.door||issue.star||issue.god||issue.name}${chart.kongwangPalaces.includes(issue.palace)?' / 临空亡':''}`,palace:issue.palace,tone:'caution'},
     {label:'下一步寻找',title:'按分区顺序寻找，不重复翻同一区域',body:`先查${issue.direction}侧，再回溯最后使用动线；每查完一个区域就做标记。若现实线索与象意不符，以监控、定位功能和他人记忆为准。`,evidence:`主用${primarySymbol} / 值使${chart.zhishi.door} / 玄武辅助`,palace:environment.palace,tone:'bright'},

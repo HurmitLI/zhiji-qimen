@@ -5,6 +5,7 @@ export type AiReading={omenTitle:string;oracle:string;overview:string;chapters:A
 export type ChatMessage={role:'user'|'assistant';content:string};
 export type FollowupIntent='simplify'|'explain'|'action'|'reason'|'scope'|'normal';
 export type IntakeIntentStatus='supported'|'supported_symbolic'|'unsupported'|'high_risk';
+export type SeekScope='nearby_exact'|'symbolic_or_distant';
 export type IntakeResult={
   intentStatus:IntakeIntentStatus;
   ready:boolean;
@@ -16,18 +17,33 @@ export type IntakeResult={
   options:string[];
 };
 
+export function classifySeekScope(input:string):SeekScope|null{
+  const clean=String(input||'').trim();
+  const locator=/(?:在哪|在哪里|哪儿|什么位置|具体位置|离我最近|身边|附近|找不到|不见了|丢了|找回|寻找|想找|求)/i;
+  const symbolicTarget=/(?:贵人|伯乐|缘分|机缘|机会|合作伙伴|合伙人|客户|人脉|资源|适合的(?:工作|房子|住处|城市|方向)|远方.{0,6}(?:人|物|机会))/i;
+  if(locator.test(clean)&&symbolicTarget.test(clean))return 'symbolic_or_distant';
+  const concreteTarget=/(?:矿泉水|水瓶|瓶(?:子)?|杯(?:子)?|手机|钥匙|钱包|证件|耳机|背包|包|戒指|文件|物品|东西|遥控器|眼镜|手表|充电器|宠物|猫|狗|某个人|家人)/i;
+  if(locator.test(clean)&&concreteTarget.test(clean))return 'nearby_exact';
+  return null;
+}
+
 export function intakeRuleRoute(input:string):IntakeResult|null{
   const clean=String(input||'').trim();
-  const seekObject=/(?:手机|钥匙|钱包|证件|东西|物品|瓶(?:子)?|杯(?:子)?|耳机|背包|包|戒指|文件|宠物|猫|狗|某个人|家人).{0,16}(?:在哪|在哪里|哪儿|位置|方位|找不到|不见了|丢了)|(?:找|寻找|找回).{0,20}(?:手机|钥匙|钱包|证件|东西|物品|瓶(?:子)?|杯(?:子)?|耳机|背包|戒指|文件|宠物|猫|狗|人)/i.test(clean);
-  if(seekObject){
+  const seekScope=classifySeekScope(clean);
+  if(seekScope){
+    const nearbyExact=seekScope==='nearby_exact';
     return {
       intentStatus:'supported_symbolic',
       ready:true,
-      assistantMessage:'我理解这是寻物或寻人问题，不会把它归为人生方向。可以按传统奇门的寻物取用起局，结果只给象征性方位、环境特征和寻找顺序，不是精确定位。',
+      assistantMessage:nearbyExact
+        ? '近身小物，落处随手而移，盘中宜取其象，不宜落到寸尺。此念可以起局：先辨大致方位、明暗高低与藏露之象，再循最后触碰它的动线寻迹。'
+        : '贵人、机缘与尚未在眼前之物，所问不在一处坐标，而在它从何方来、何时相应。此念可以起局，盘中会看其来路、环境特征、先后时机与可印证之处。',
       questionType:'寻人寻物',
       focus:'找方位线索',
-      refinedQuestion:`以传统奇门象意观察：${clean.slice(0,90)}（只看方位与环境特征）`,
-      contextSummary:'用户希望寻找具体的人或物品。',
+      refinedQuestion:nearbyExact
+        ? `循象寻迹：${clean.slice(0,90)}（取大致方位、明暗高低与藏露之象）`
+        : `观其来路与应象：${clean.slice(0,90)}`,
+      contextSummary:nearbyExact?'用户询问近身具体物品的位置，结果仅作分区寻迹。':'用户希望寻找贵人、机缘、远处的人或尚未出现的事物。',
       options:[],
     };
   }

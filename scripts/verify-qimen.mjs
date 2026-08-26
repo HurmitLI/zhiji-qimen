@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { buildQimenChart } from '../lib/qimen.ts';
 import { interpretChart } from '../lib/interpret.ts';
-import { classifyFollowupIntent, intakeRuleRoute } from '../lib/ai.ts';
+import { classifyFollowupIntent, classifySeekScope, intakeRuleRoute } from '../lib/ai.ts';
 
 assert.equal(classifyFollowupIntent('再简单点'), 'simplify');
 assert.equal(classifyFollowupIntent('用人话说'), 'simplify');
@@ -15,6 +15,12 @@ assert.equal(seekRoute?.intentStatus, 'supported_symbolic');
 assert.equal(seekRoute?.questionType, '寻人寻物');
 assert.equal(seekRoute?.focus, '找方位线索');
 assert.equal(seekRoute?.ready, true);
+assert.equal(classifySeekScope('离我最近的矿泉水瓶子在哪'), 'nearby_exact');
+assert.match(seekRoute?.assistantMessage||'', /不宜落到寸尺/);
+const patronRoute = intakeRuleRoute('我想找一个能帮助事业的贵人');
+assert.equal(classifySeekScope('我想找一个能帮助事业的贵人'), 'symbolic_or_distant');
+assert.equal(patronRoute?.questionType, '寻人寻物');
+assert.match(patronRoute?.assistantMessage||'', /从何方来、何时相应/);
 assert.equal(intakeRuleRoute('我该不该转行'), null);
 assert.equal(intakeRuleRoute('这只股票明天会涨到多少钱')?.intentStatus, 'high_risk');
 

@@ -1073,7 +1073,7 @@ export default function Home() {
             </div>
             {isSeeking && (
               <small className="symbolic-scope-note">
-                寻物象意体验 · 只提供优先方位、环境特征与寻找顺序，不是精确定位
+                寻迹有界 · 近身小物取其方与象，不落到寸尺；贵人与远方目标观其来路与时机
               </small>
             )}
           </div>
@@ -1198,7 +1198,7 @@ export default function Home() {
                 <b>{isSeeking ? "再按顺序排查" : "再寻找行动线索"}</b>
                 <small>{isSeeking ? "环境、遮蔽、下一步" : "机会、阻力、转机"}</small>
               </span>
-              <p>{isSeeking ? "方位是象意排序，不是坐标；每一步都应与现实动线交叉核对。" : "建议按顺序读；每章底部的“查看依据”会带你回到对应的九宫位置。"}</p>
+              <p>{isSeeking ? "先循盘中所示的方向与藏露之象，再以最后接触、移动与收纳的现实动线逐一印证。" : "建议按顺序读；每章底部的“查看依据”会带你回到对应的九宫位置。"}</p>
             </div>
             <div className={`fortune-grid ${bookExpanded ? "expanded" : "collapsed"}`}>
               {(bookExpanded ? readingChapters : readingChapters.slice(0, 3)).map((item, i) => {
@@ -1786,8 +1786,8 @@ export default function Home() {
             </div>
             {topic === "寻人寻物" && (
               <div className="confirm-note">
-                <b>寻物象意体验</b>
-                <span>结果会给优先方位、环境特征与寻找顺序，不提供精确坐标，也不保证与物品实际位置一致。</span>
+                <b>寻迹有界</b>
+                <span>近身小物，落处随手而移，盘中取其大致方位、明暗高低与藏露之象；若问贵人、机缘或远处之物，则观其来路、环境与相应时机。</span>
               </div>
             )}
             <div className="confirm-note">
