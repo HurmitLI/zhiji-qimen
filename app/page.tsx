@@ -162,6 +162,17 @@ const signalPlainLanguage: Record<string, string> = {
   事情宫: "事情正在怎样发展",
   时段值使: "当下环境是否顺手",
 };
+const topicUsePreview: Record<string, string> = {
+  人生方向: "主看时干所代表的事情动态，同时看日干所代表的本人",
+  事业发展: "主用神取开门；日干看本人，时干看事情发展",
+  财富趋势: "主用神取生门，戊作资金辅助；日干看本人",
+  感情关系: "主用神取六合观察关系连接；日干看本人",
+  学业成长: "主用神取景门，天辅作学习辅助；日干看本人",
+  迁移远行: "主看驿马，开门作通行辅助；日干看本人",
+  项目决策: "主用神取开门，天心作判断辅助；日干看本人",
+  寻人寻物: "主看时干所代表的对象动态，玄武作遮蔽辅助",
+  方位择时: "主看驿马，开门作行动入口辅助；日干看本人",
+};
 type Layer = keyof typeof layerNames;
 type Screen =
   | "landing"
@@ -211,6 +222,58 @@ function beijingNow() {
     Number(p.hour),
     Number(p.minute),
   );
+}
+
+function conditionalVerdict(
+  chart: QimenChart,
+  interpretation: ReturnType<typeof interpretChart>,
+) {
+  const isCareer = chart.input.questionType === "事业发展" || chart.input.questionType === "事业选择";
+  if (isCareer) {
+    if (interpretation.tone === "bright") {
+      return {
+        label: "条件化倾向",
+        title: "更偏向主动验证新机会，但不支持立即离开现职",
+        condition: "先核实职责、回报、汇报线与试用标准；连续获得可复核的正向反馈后，再决定是否转向。",
+      };
+    }
+    if (interpretation.tone === "caution") {
+      return {
+        label: "条件化倾向",
+        title: "现阶段更偏向稳住现职，暂缓不可逆转向",
+        condition: "先补齐关键信息并降低转换成本；条件没有落到书面、承诺仍有落差时，不建议贸然离开。",
+      };
+    }
+    return {
+      label: "条件化倾向",
+      title: "先保留现职，同时低成本验证新机会",
+      condition: "这局不支持立即二选一；用一到两周完成条件核验，再根据连续反馈决定是否加码。",
+    };
+  }
+  if (interpretation.tone === "bright") {
+    return {
+      label: "本局倾向",
+      title: "可以推进，但先从可撤回的小动作开始",
+      condition: "先验证主用神所代表的关键条件，现实反馈与盘面方向连续同向后再扩大投入。",
+    };
+  }
+  if (interpretation.tone === "caution") {
+    return {
+      label: "本局倾向",
+      title: "暂缓大动，先解除最主要的限制",
+      condition: "在信息、资源或承受边界没有补齐前，不做不可逆决定。",
+    };
+  }
+  return {
+    label: "本局倾向",
+    title: "先试后定，用现实反馈收拢选择",
+    condition: "先完成一个低成本验证，再决定继续、转向还是等待。",
+  };
+}
+
+function dedupeEvidence(value: string) {
+  const parts = value.split("/").map((part) => part.trim()).filter(Boolean);
+  return parts.filter((part, index) => parts.indexOf(part) === index).join(" / ");
 }
 
 function PalaceMatrix({
@@ -955,6 +1018,10 @@ export default function Home() {
       selectedPalace || interpretation.issuePalace,
     );
     const issuePalace = palaceByNumber(chart, interpretation.issuePalace);
+    const selfPalace = palaceByNumber(chart, interpretation.selfPalace);
+    const matterPalace = palaceByNumber(chart, interpretation.matterPalace);
+    const environmentPalace = palaceByNumber(chart, interpretation.environmentPalace);
+    const verdict = conditionalVerdict(chart, interpretation);
     const readingOracle = aiReading?.oracle || interpretation.oracle;
     const seekScope = isSeeking ? classifySeekScope(chart.input.question) : null;
     const readingActions = seekScope === "symbolic_or_distant"
@@ -981,7 +1048,7 @@ export default function Home() {
     addPalaceMarker(interpretation.environmentPalace, "当下环境");
     return (
       <main
-        className={`app-shell result-screen paged-result fortune-${interpretation.tone}`}
+        className={`app-shell result-screen paged-result tab-${resultTab} fortune-${interpretation.tone}`}
       >
         <div className="noise" />
         <header className="topbar">
@@ -1022,13 +1089,18 @@ export default function Home() {
             <span className="mast-conclusion-label">本局结论</span>
             <h1>{interpretation.decisionTitle}</h1>
             <blockquote>所问：“{chart.input.question}”</blockquote>
+            <div className="conditional-verdict">
+              <span>{verdict.label}</span>
+              <b>{verdict.title}</b>
+              <small>{verdict.condition}</small>
+            </div>
             {chart.input.context && (
               <small>问事背景：{chart.input.context}</small>
             )}
             <div className="reading-badges">
-              <span>盘面由规则计算</span>
+              <span>规则盘面与基础判断已生成</span>
               {aiReading && <b>结合处境的解读已生成</b>}
-              {aiLoading && <em>命书生成中…</em>}
+              {aiLoading && <em>处境化命书生成中，不改变基础判断</em>}
             </div>
             {isSeeking && (
               <small className="symbolic-scope-note">
@@ -1202,7 +1274,7 @@ export default function Home() {
                     <small>{item.label}</small>
                     <h4>{item.title}</h4>
                     <p>{item.body}</p>
-                    <em>{item.evidence} · 查看依据 →</em>
+                    <em>{dedupeEvidence(item.evidence)} · 查看依据 →</em>
                   </button>
                 );
               })}
@@ -1223,12 +1295,63 @@ export default function Home() {
 
         {resultTab === "chart" && (
           <section className="result-view chart-view">
+            <div className="calculation-summary">
+              <div className="calculation-summary-heading">
+                <span>本局计算摘要</span>
+                <h2>先看时间如何固定这一张盘</h2>
+                <p>下面都是本局实际计算结果，不是通用规则说明。</p>
+              </div>
+              <div className="calculation-facts">
+                <span><small>起局时间</small><b>{chart.calendar.solar}</b><em>北京时间</em></span>
+                <span><small>当前节令</small><b>{chart.calendar.activeJie}</b><em>下节 {chart.calendar.nextJie}</em></span>
+                <span><small>四柱</small><b>{chart.calendar.year} · {chart.calendar.month}</b><em>{chart.calendar.day} · {chart.calendar.time}</em></span>
+                <span><small>遁局</small><b>{chart.dunType}{chart.juNumber}局</b><em>{chart.yuan}</em></span>
+                <span><small>旬首遁仪</small><b>{chart.xunshou}</b><em>遁 {chart.hiddenYi}</em></span>
+                <span><small>值符</small><b>{chart.zhifu.star}</b><em>{palaceByNumber(chart, chart.zhifu.palace).name}</em></span>
+                <span><small>值使</small><b>{chart.zhishi.door}</b><em>{palaceByNumber(chart, chart.zhishi.palace).name}</em></span>
+                <span><small>时空亡</small><b>{chart.kongwang.join("、")}</b><em>{chart.kongwangPalaces.map((n) => palaceByNumber(chart, n).name).join("、")}</em></span>
+              </div>
+            </div>
             <div className="chart-toolbar">
               <div>
                 <span>这张盘怎么读</span>
                 <h2>九宫是本局的证据地图</h2>
-                <p>重点不是看懂所有术语，而是找到被标出的宫位：它们分别代表本题核心、你本人、事情发展和当下环境。点击一格，右侧会解释它怎样影响结论。</p>
+                <p>先看下面的取用关系，再到九宫中核对落位；不需要从九格里盲猜应该看哪一格。</p>
               </div>
+            </div>
+            <div className="use-selection-map">
+              <div className="use-selection-heading">
+                <span>为什么看这几个宫</span>
+                <h3>问题决定取用，时间决定落宫</h3>
+                <p>{interpretation.primaryReason}。完成排盘后，再找到它与日干、时干各自所在的宫。</p>
+              </div>
+              <div className="use-selection-flow">
+                <button onClick={() => setSelectedPalace(selfPalace.palace)}>
+                  <small>你本人 · 日干</small>
+                  <b>{chart.dayStem.stem}</b>
+                  <span>{selfPalace.direction} · {selfPalace.name}</span>
+                </button>
+                <div className="use-relation">
+                  <i>主体 ↔ 主用神</i>
+                  <b>{interpretation.relation}</b>
+                </div>
+                <button className="primary" onClick={() => setSelectedPalace(issuePalace.palace)}>
+                  <small>本题核心 · 主用神</small>
+                  <b>{interpretation.mainSymbol}</b>
+                  <span>{issuePalace.direction} · {issuePalace.name}</span>
+                </button>
+                <button onClick={() => setSelectedPalace(matterPalace.palace)}>
+                  <small>事情发展 · 时干</small>
+                  <b>{chart.timeStem.stem}</b>
+                  <span>{matterPalace.direction} · {matterPalace.name}</span>
+                </button>
+                <button onClick={() => setSelectedPalace(environmentPalace.palace)}>
+                  <small>当下环境 · 值使</small>
+                  <b>{chart.zhishi.door}</b>
+                  <span>{environmentPalace.direction} · {environmentPalace.name}</span>
+                </button>
+              </div>
+              <small className="use-selection-note">点击任意角色，可直接在九宫中定位对应宫位。</small>
             </div>
             <details className="layer-guide">
               <summary><b>专业分层（可选）</b><span>只想看结论可以跳过</span></summary>
@@ -1343,7 +1466,7 @@ export default function Home() {
             </div>
             <div className="ask-shell">
               <div className="ask-purpose">
-                <b>你可以从下面三个问题开始，也可以直接写自己的追问。</b>
+                <b>点选推荐问题后会先放入输入框，你可以修改，再决定是否发送。</b>
                 <span>如果问题已经换了主题或时间，应重新起局。</span>
               </div>
               <div className="prompt-chips">
@@ -1351,7 +1474,7 @@ export default function Home() {
                   <button
                     key={prompt}
                     disabled={chatLoading}
-                    onClick={() => void submitFollowup(undefined, prompt)}
+                    onClick={() => setChatInput(prompt)}
                   >
                     {prompt}
                   </button>
@@ -1739,7 +1862,7 @@ export default function Home() {
               <span>
                 <b>{selectedTopic.name}的取用</b>
                 <small>
-                  {selectedTopic.hint}。本题会按这一类问题对应的传统取用方式判断。
+                  {topicUsePreview[selectedTopic.name] || `${selectedTopic.hint}。本题会按这一类问题对应的传统取用方式判断。`}
                 </small>
               </span>
             </div>

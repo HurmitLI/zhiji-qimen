@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './v36.css';
 
 export const metadata: Metadata = {
   title: '一局 · 奇门问事',
