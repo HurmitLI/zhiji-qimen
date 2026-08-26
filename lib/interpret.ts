@@ -163,6 +163,7 @@ export function interpretChart(chart:QimenChart){
   const timeStem=chart.timeStem||{stem:chart.timeStemVisible,palace:chart.zhishi.palace};
   const profile=topicProfiles[chart.input.questionType]||topicProfiles.开放问题;
   const isSeeking=chart.input.questionType==='寻人寻物';
+  const isCareer=chart.input.questionType==='事业发展'||chart.input.questionType==='事业选择';
   const issueNo=targetPalace(chart,profile.primary)||timeStem.palace;
   const issue=palaceByNumber(chart,issueNo);
   const self=palaceByNumber(chart,chart.dayStem.palace);
@@ -170,6 +171,18 @@ export function interpretChart(chart:QimenChart){
   const environment=palaceByNumber(chart,chart.zhishi.palace);
   const primarySymbol=symbolFor(chart,profile.primary,issue);
   const questionAnchor=questionSubject(chart.input.question,profile);
+  const careerTarget=questionAnchor!==profile.label
+    ? questionAnchor
+    : chart.input.question
+      .replace(/^(?:我|现在|目前)?(?:该不该|要不要|是否|适不适合|应该不应该)/,'')
+      .replace(/[？?。！!]/g,'')
+      .trim()
+      .slice(0,24)||profile.label;
+  const careerChoices=/(?:稳住|积累).{0,12}(?:突破|转向)/.test(chart.input.question)
+    ? ['稳住积累','主动突破']
+    : /(?:继续|留下).{0,12}(?:转向|离开|跳槽)/.test(chart.input.question)
+      ? ['继续当前路径','转向新机会']
+      : ['维持现状',`推进${careerTarget}`];
   const relation=relationText(self,issue);
   const rawEnvironmentTone=scoreTone(palaceScore(environment,chart));
   const environmentModifier=rawEnvironmentTone==='bright'?1:rawEnvironmentTone==='caution'?-1:0;
@@ -244,14 +257,18 @@ export function interpretChart(chart:QimenChart){
     '今天：列出这份作业还剩哪些部分，给每一项估算时间，并先完成最小的一段。',
     '七天内：记录每天的实际进度，用真实速度调整完成日期，不再只凭感觉估算。',
     '连续两次按计划完成就维持当前节奏；如果仍然卡住，就缩小任务或向老师、同学确认要求。',
+  ]:isCareer?[
+    `今天：把“${careerChoices[0]}”和“${careerChoices[1]}”分别写成一列，逐项确认职责变化、实际回报、需要投入的时间和最坏结果；有一项说不清，就先不做决定。`,
+    '七天内：分别向机会提供方或直接负责人、一位了解实际执行的人、一个没有利益关系的人核实信息，记下三方说法一致和冲突的地方。',
+    '只有核心条件得到明确确认、三方信息大体一致，而且你能承担最坏结果时再推进；否则维持现状，并把下一次尝试缩小到可撤回的范围。',
   ]:isSeeking?[
     `第一轮：围绕“${questionAnchor}”，从相对当前位置的${issue.direction}侧开始，按桌面、地面、收纳处和遮挡处逐区检查。`,
     `第二轮：回忆“${questionAnchor}”最后一次使用、移动和清理的完整动线，并询问可能接触过它的人。`,
     `仍未找到“${questionAnchor}”时：停止重复翻找，改用设备定位、监控、失物招领或重新走一遍现实路线。`,
   ]:[
-    `今天：围绕“${questionAnchor}”，${profile.verb}，同时写下一个明确的停止条件。`,
-    `七天内：为“${questionAnchor}”收集三条独立的外部反馈，并用${primarySymbol}所代表的条件逐条核对。`,
-    `只有“${questionAnchor}”的现实反馈与主用神条件连续同向时再加码；值使门只作为时段节奏参考。`,
+    `今天：围绕“${questionAnchor}”，写清已经确认的事实、仍不确定的信息和你最担心的结果；信息缺口没补齐前，不做不可逆决定。`,
+    `七天内：为“${questionAnchor}”找三条独立的外部反馈，优先询问直接相关的人、了解实际情况的人和一个没有利益关系的人。`,
+    `只有关键信息得到确认、三方反馈大体一致，而且最坏结果在你能承受的范围内时再推进；否则先维持现状，缩小下一次尝试。`,
   ];
   const oracle=decisionBody;
 

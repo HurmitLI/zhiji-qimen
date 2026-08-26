@@ -468,7 +468,6 @@ export default function Home() {
   const [soundMuted, setSoundMuted] = useState(true);
   const [layer, setLayer] = useState<Layer>("all");
   const [selectedPalace, setSelectedPalace] = useState<number>();
-  const [checks, setChecks] = useState<boolean[]>([false, false, false]);
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<SavedReading[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -654,7 +653,6 @@ export default function Home() {
     setChatMessages([]);
     setChatInput("");
     setScreen("ritual");
-    setChecks([false, false, false]);
     window.scrollTo({ top: 0 });
   }
   function reset() {
@@ -1140,30 +1138,24 @@ export default function Home() {
         {resultTab === "book" && (
           <section className="result-view book-page unified-book-page">
             <div className="page-kicker">
-              <span>结论之后</span>
-              <b>先把行动带回现实，再按需要查看盘面解释</b>
+              <span>下一步</span>
+              <b>先验证，再决定</b>
             </div>
             <div className="book-action-block primary-action-block">
               <div className="book-action-heading">
-                <span>本局最重要的部分</span>
-                <h3>接下来，先做这三件事</h3>
-                <p>结论只有落到现实动作才有用。先完成能够验证、能够撤回的步骤，再决定是否继续投入。</p>
+                <span>现实核验 · 不需要现在完成</span>
+                <h3>把结论带回现实</h3>
+                <p>这不是网页里的待办任务。请按自己的实际节奏，依次确认信息、核实反馈，再决定是否行动。</p>
               </div>
               <div className="book-action-list">
                 {readingActions.map((item, i) => (
-                  <label key={item}>
-                    <input
-                      type="checkbox"
-                      checked={checks[i]}
-                      onChange={() =>
-                        setChecks((list) =>
-                          list.map((v, n) => (n === i ? !v : v)),
-                        )
-                      }
-                    />
-                    <i>{checks[i] ? "✓" : pad(i + 1)}</i>
-                    <b>{item}</b>
-                  </label>
+                  <article key={item}>
+                    <i>{pad(i + 1)}</i>
+                    <div>
+                      <small>{["今天先确认什么", "七天内向谁核实", "满足什么条件再决定"][i]}</small>
+                      <p>{item.replace(/^(?:今天|七天内)[：:]\s*/, "")}</p>
+                    </div>
+                  </article>
                 ))}
               </div>
             </div>

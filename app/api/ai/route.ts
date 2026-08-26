@@ -76,7 +76,8 @@ export function groundedReading(raw:Record<string,unknown>,fallback:ReturnType<t
   });
   const anchor=fallback.questionAnchor;
   const isSpecific=(value:unknown,min:number,max:number)=>typeof value==='string'&&value.length>=min&&value.length<=max&&value.includes(anchor);
-  const modelActions=actions.length===3&&actions.some(item=>item.includes(anchor))&&new Set(actions).size===3?actions:fallback.actions;
+  const actionsArePlain=actions.every(item=>!/(?:主用神|值使门|值符|开门所代表|落宫|宫位条件)/.test(item));
+  const modelActions=actions.length===3&&actions.some(item=>item.includes(anchor))&&new Set(actions).size===3&&actionsArePlain?actions:fallback.actions;
   return {
     decisionTitle:isSpecific(raw.decisionTitle,6,28)?String(raw.decisionTitle):fallback.decisionTitle,
     omenTitle:typeof raw.omenTitle==='string'?raw.omenTitle:fallback.omenTitle,
@@ -208,7 +209,7 @@ export async function POST(request:Request){
     if(body.mode==='reading'){
       const chart=canonicalChart(body.chart);
       const fallback=interpretChart(chart);
-      const result=await createResponse({chart,fallback},`${baseInstructions}\n任务：结合用户问题、现实背景和完整盘面，生成一份真正个性化的“一局命书”。fallback中的mainSymbol是本题主用神，综合结论必须以它、日干主体宫和时干事情宫为核心；值使只代表时段环境，禁止把值使门直接写成整件事的最终吉凶。六个章节必须按规定标签与顺序输出。不要改变fallback的总体倾向。\n个性化硬要求：fallback.questionAnchor是本题的具体对象。decisionTitle、oracle、overview和三条actions合计必须多次原样使用这个词，不能只把事业、学业、关系等分类名换进去；decisionTitle要直接回答这件具体事，禁止照抄fallback.decisionTitle；oracle第一句先回应用户的现实取舍，再解释盘面；三条行动分别写今天、七天内和继续或停止的判断条件，且必须与当前问题中的人物、选项或目标有关。不同问题不能复用同一组标题、断语和行动。行动建议要低成本、可撤回、可验证。\n如果questionType是寻人寻物：近身具体物品只能写大致方位、明暗高低、藏露特征和现实寻找顺序，不得写成已经定位；贵人、机缘或远处目标可写来路、相遇环境、时机与现实印证。边界提示使用克制的传统先生口吻，不要生硬重复免责声明。`,readingSchema,2800);
+      const result=await createResponse({chart,fallback},`${baseInstructions}\n任务：结合用户问题、现实背景和完整盘面，生成一份真正个性化的“一局命书”。fallback中的mainSymbol是本题主用神，综合结论必须以它、日干主体宫和时干事情宫为核心；值使只代表时段环境，禁止把值使门直接写成整件事的最终吉凶。六个章节必须按规定标签与顺序输出。不要改变fallback的总体倾向。\n个性化硬要求：fallback.questionAnchor是本题的具体对象。decisionTitle、oracle、overview和三条actions合计必须多次原样使用这个词，不能只把事业、学业、关系等分类名换进去；decisionTitle要直接回答这件具体事，禁止照抄fallback.decisionTitle；oracle第一句先回应用户的现实取舍，再解释盘面；三条行动分别写今天、七天内和继续或停止的判断条件，且必须与当前问题中的人物、选项或目标有关。不同问题不能复用同一组标题、断语和行动。行动建议要低成本、可撤回、可验证。actions是给普通用户执行的现实步骤，禁止出现主用神、值使门、值符、落宫、宫位条件或“开门所代表”等术语；盘面依据只写在chapters和evidence里。\n如果questionType是寻人寻物：近身具体物品只能写大致方位、明暗高低、藏露特征和现实寻找顺序，不得写成已经定位；贵人、机缘或远处目标可写来路、相遇环境、时机与现实印证。边界提示使用克制的传统先生口吻，不要生硬重复免责声明。`,readingSchema,2800);
       return Response.json({mode:'reading',reading:groundedReading(result,fallback)});
     }
     const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-8).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));

@@ -51,6 +51,28 @@ assert.equal(generic.decisionTitle, fallback.decisionTitle);
 assert.equal(generic.oracle, fallback.oracle);
 assert.deepEqual(generic.actions, fallback.actions);
 
+const abstractActions = groundedReading({
+  ...raw,
+  actions: [
+    '今天围绕创业公司邀约，用开门所代表的条件逐条核对。',
+    '七天内观察创业公司邀约是否与主用神条件连续同向。',
+    '创业公司邀约符合值使门节奏时再决定是否加码。',
+  ],
+}, fallback);
+assert.deepEqual(abstractActions.actions, fallback.actions);
+
+const otherCareerFallback = interpretChart(buildQimenChart({
+  date: new Date('2026-08-26T16:45:00+08:00'),
+  questionType: '事业发展',
+  question: '我该不该接受创业公司的产品负责人邀约？',
+  city: '北京',
+  focus: '决定下一步',
+  context: '现岗位稳定，新机会的权限和回报还不明确。',
+}));
+assert.match(otherCareerFallback.actions[0], /创业公司/);
+assert.doesNotMatch(otherCareerFallback.actions.join(''), /稳住积累|主动突破/);
+assert.doesNotMatch(otherCareerFallback.actions.join(''), /主用神|值使门|开门所代表/);
+
 const homeworkChart = buildQimenChart({
   date: new Date('2026-08-26T18:17:00+08:00'),
   questionType: '学业成长',
