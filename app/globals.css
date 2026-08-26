@@ -8615,3 +8615,118 @@ body {
     font-size: 11px;
   }
 }
+
+/* Remove decorative character circles and keep the hierarchy editorial. */
+.ai-demo-steps article {
+  display: block;
+  padding: 22px 0;
+}
+.ai-demo-steps article span {
+  width: 100%;
+}
+.ai-demo-steps small {
+  color: #8d7554;
+  letter-spacing: 0.12em;
+}
+.confirm-screen .use-rule,
+.wizard-screen .ai-role-note.confirm {
+  display: block;
+  padding: 14px 16px;
+  border: 0;
+  border-left: 2px solid rgba(143, 106, 56, 0.32);
+  border-radius: 0;
+  background: linear-gradient(90deg, rgba(240, 235, 224, 0.72), transparent);
+}
+.locked-question {
+  justify-content: center;
+  max-width: 56%;
+}
+.locked-question b {
+  color: #aaa58f;
+  font-size: 12px;
+}
+
+/* The result is the readable judgment; Qimen symbols are evidence, not the answer. */
+.result-screen .result-mast {
+  padding-top: 42px;
+  padding-bottom: 30px;
+}
+.result-screen .mast-conclusion-label {
+  margin-top: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 9px;
+}
+.result-screen .result-mast h1 {
+  max-width: 830px;
+  margin-top: 10px;
+  font-size: clamp(30px, 3.5vw, 44px);
+  line-height: 1.28;
+}
+.result-screen .result-mast blockquote {
+  margin-top: 16px;
+}
+.result-screen .result-view {
+  padding-top: 34px;
+}
+.result-screen .oracle-hero,
+.fortune-caution .oracle-hero,
+.fortune-bright .oracle-hero {
+  display: block;
+  min-height: 0;
+  padding: 30px 34px;
+  border-color: rgba(22, 22, 22, 0.08);
+  border-radius: 18px;
+  color: #292927;
+  background: linear-gradient(135deg, rgba(246, 248, 250, 0.94), rgba(255, 253, 248, 0.96));
+  box-shadow: 0 18px 48px rgba(42, 50, 64, 0.06);
+}
+.result-screen .oracle-hero::after {
+  display: none;
+}
+.result-screen .oracle-copy {
+  position: relative;
+  z-index: 1;
+}
+.result-screen .oracle-copy > span {
+  color: #8f6a38;
+}
+.result-screen .oracle-hero h2 {
+  max-width: 940px;
+  margin: 13px 0 18px;
+  color: #292927;
+  font-size: clamp(23px, 2.6vw, 34px);
+  line-height: 1.62;
+}
+.result-screen .oracle-hero p {
+  color: #66645f;
+  font-size: 10px;
+  line-height: 1.75;
+  letter-spacing: 0.03em;
+}
+.result-screen .oracle-hero small {
+  display: block;
+  margin-top: 10px;
+  color: #97938b;
+  font: 9px/1.7 var(--sans);
+}
+
+@media (max-width: 680px) {
+  .locked-question {
+    max-width: 52%;
+  }
+  .result-screen .result-mast {
+    padding-top: 30px;
+  }
+  .result-screen .result-mast h1 {
+    font-size: 29px;
+  }
+  .result-screen .oracle-hero {
+    padding: 24px 20px;
+  }
+  .result-screen .oracle-hero h2 {
+    font-size: 22px;
+  }
+}

@@ -18,6 +18,23 @@ export function intakeResponseStillAsking(result:Pick<IntakeResult,'assistantMes
   return (Array.isArray(result.options)&&result.options.length>0)||/[？?]/.test(message);
 }
 
+export function intakeBoundaryReply(input:string){
+  const clean=String(input||'').trim();
+  if(/^(你好|您好|嗨|哈喽|hi|hello|在吗|有人吗|测试一下|测试)[!！。,.，\s]*$/i.test(clean)){
+    return {
+      message:'你好。这里用来起局问事，请直接说一件你想判断的事情，例如工作选择、关系走向或未来方向。',
+      options:['我想问事业选择','我想问关系走向','我想看未来方向'],
+    };
+  }
+  if(/提示词|prompt|系统指令|system\s*prompt|内部指令|越狱|jailbreak|忽略.{0,8}(规则|指令)|什么模型|模型名称|api\s*key|密钥|源码|源代码/i.test(clean)){
+    return {
+      message:'我不能提供内部指令、密钥或运行规则。这里仅用于奇门问事；请直接描述你想判断的一件现实问题。',
+      options:['我想问事业选择','我想问关系走向','我想看未来方向'],
+    };
+  }
+  return null;
+}
+
 export type AiRequest=
   | {mode:'intake';messages:ChatMessage[];question:string}
   | {mode:'clarify';topic:string;question:string;context:string}

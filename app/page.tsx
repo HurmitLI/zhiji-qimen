@@ -18,6 +18,7 @@ import { interpretChart, type Tone } from "../lib/interpret";
 import {
   requestAi,
   intakeResponseStillAsking,
+  intakeBoundaryReply,
   type AiReading,
   type ChatMessage,
   type IntakeResult,
@@ -621,17 +622,37 @@ export default function Home() {
     setIntakeMessages(nextMessages);
     setIntakeInput("");
     setIntakeOptions([]);
-    setIntakeLoading(true);
     setAiError("");
+    const boundary = intakeBoundaryReply(clean);
+    if (boundary) {
+      setIntakeMessages([
+        ...nextMessages,
+        { role: "assistant", content: boundary.message },
+      ]);
+      setIntakeOptions(boundary.options);
+      setIntakeReady(false);
+      return;
+    }
+    const substantiveMessages = nextMessages.filter(
+      (item) => item.role === "user" && !intakeBoundaryReply(item.content),
+    );
+    const mustFinish = substantiveMessages.length >= 2;
+    setIntakeLoading(true);
     try {
       const response = await requestAi<{ mode: "intake" } & IntakeResult>({
         mode: "intake",
-        messages: nextMessages,
+        messages: substantiveMessages,
         question: clean,
       });
       const normalizedResponse = {
         ...response,
-        ready: response.ready && !intakeResponseStillAsking(response),
+        ready: mustFinish
+          ? true
+          : response.ready && !intakeResponseStillAsking(response),
+        options: mustFinish ? [] : response.options,
+        assistantMessage: mustFinish
+          ? `这一问已经整理完成。已归入“${response.questionType}”，重点看“${response.focus}”。确认后即可起局。`
+          : response.assistantMessage,
       };
       const assistantMessage: ChatMessage = {
         role: "assistant",
@@ -643,9 +664,8 @@ export default function Home() {
       const message =
         error instanceof Error ? error.message : "问事官暂时没有回应";
       setAiError(message);
-      if (existingMessages.length >= 2) {
-        const words = nextMessages
-          .filter((item) => item.role === "user")
+      if (substantiveMessages.length >= 2) {
+        const words = substantiveMessages
           .map((item) => item.content)
           .join(" ");
         const fallbackTopic = /感情|关系|伴侣|恋爱|婚姻/.test(words)
@@ -666,7 +686,7 @@ export default function Home() {
             : /选择|决定|怎么办|下一步/.test(words)
               ? "决定下一步"
               : "看未来主线";
-        const original = nextMessages.find((item) => item.role === "user")?.content || clean;
+        const original = substantiveMessages[0]?.content || clean;
         setTopic(fallbackTopic);
         setFocus(fallbackFocus);
         setQuestion(original.slice(0, 120));
@@ -783,7 +803,6 @@ export default function Home() {
             </span>
           </div>
           <div className="locked-question">
-            <span>已封题</span>
             <b>{chart.input.question}</b>
           </div>
           <button className="ghost-button" onClick={reset}>
@@ -909,12 +928,7 @@ export default function Home() {
       chart,
       selectedPalace || interpretation.issuePalace,
     );
-    const mastVerdict =
-      interpretation.tone === "bright"
-        ? "可以推进，但先从可验证的一步开始"
-        : interpretation.tone === "caution"
-          ? "暂缓大动作，先补条件、降成本"
-          : "可以试探，但暂不适合一次押注";
+    const issuePalace = palaceByNumber(chart, interpretation.issuePalace);
     const readingOracle = aiReading?.oracle || interpretation.oracle;
     const readingActions = aiReading?.actions || interpretation.actions;
     const readingChapters =
@@ -972,10 +986,8 @@ export default function Home() {
               {chart.input.questionType} · {chart.input.focus || focus} ·{" "}
               {chart.calendar.solar}
             </p>
-            <span className="mast-conclusion-label">
-              本局结论 · {interpretation.toneLabel}
-            </span>
-            <h1>{mastVerdict}</h1>
+            <span className="mast-conclusion-label">本局判断</span>
+            <h1>{interpretation.decisionTitle}</h1>
             <blockquote>所问：“{chart.input.question}”</blockquote>
             {chart.input.context && (
               <small>问事背景：{chart.input.context}</small>
@@ -1006,40 +1018,6 @@ export default function Home() {
             </button>
           </div>
         </section>
-        <section
-          className={`ai-pipeline-strip ${aiLoading ? "loading" : aiReading ? "ready" : "fallback"}`}
-        >
-          <div className="rule">
-            <i>01</i>
-            <span>
-              <b>规则引擎</b>
-              <small>节令、四柱、九宫与值使已经固定</small>
-            </span>
-          </div>
-          <em>→</em>
-          <div className="ai">
-            <i>解</i>
-            <span>
-              <b>
-                {aiLoading
-                  ? "正在依盘写命书"
-                  : aiReading
-                    ? "个性命书已生成"
-                    : "基础命书模式"}
-              </b>
-              <small>只读取既定盘面，不修改任何排盘数据</small>
-            </span>
-          </div>
-          <em>→</em>
-          <button className="ask" onClick={() => setResultTab("ask")}>
-            <i>03</i>
-            <span>
-              <b>同局追问</b>
-              <small>围绕这一局继续问选择与行动</small>
-            </span>
-          </button>
-        </section>
-
         {resultTab === "book" && (
           <section className="result-view book-page unified-book-page">
             <div className="page-kicker">
@@ -1073,21 +1051,14 @@ export default function Home() {
               </div>
             )}
             <div className="oracle-hero">
-              <div className="omen-seal">
-                <small>{interpretation.mainLabel}</small>
-                <b>{interpretation.mainSymbol}</b>
-                <i>{interpretation.toneLabel}</i>
-              </div>
-              <div>
-                <span>
-                  {aiReading ? "个性化核心断语" : "本局核心断语"}
-                </span>
+              <div className="oracle-copy">
+                <span>为什么这样判断</span>
                 <h2>{readingOracle}</h2>
-                <p>
-                  {chart.dunType}
-                  {chart.juNumber}局 · {chart.yuan} · 值符{chart.zhifu.star} ·
-                  时段值使{chart.zhishi.door}
-                </p>
+                <p>{interpretation.evidenceSummary}</p>
+                <small>
+                  {interpretation.mainSymbol}不是测算结果，而是本题采用的传统观察依据；
+                  它所在的{issuePalace.name}及同宫的门、星、神共同形成上面的判断。
+                </small>
               </div>
             </div>
             {aiReading && (
@@ -1652,7 +1623,6 @@ export default function Home() {
             </h1>
             <p>确认无误后，问题将被封存。接下来进入十二步奇门起局过程。</p>
             <div className="ai-role-note confirm">
-              <i>解</i>
               <span>
                 <b>先规则起局，再依固定盘面写命书</b>
                 <small>命书会结合你的真实背景，但不会改变盘面。</small>
@@ -1724,11 +1694,10 @@ export default function Home() {
               </label>
             </details>
             <div className="use-rule">
-              <i>{selectedTopic.glyph}</i>
               <span>
                 <b>{selectedTopic.name}的取用</b>
                 <small>
-                  {selectedTopic.hint}。问题不改变盘，只改变结果首先观察的位置。
+                  {selectedTopic.hint}。本题会按这一类问题对应的传统取用方式判断。
                 </small>
               </span>
             </div>
@@ -1848,9 +1817,9 @@ export default function Home() {
             <blockquote>“工作越来越没有意义，但离开又怕走错，我到底该怎么办？”</blockquote>
           </div>
           <div className="ai-demo-steps">
-            <article><i>问</i><span><small>理解处境</small><b>你更想确认的是去留，还是转向后的具体方向？</b></span></article>
-            <article><i>局</i><span><small>规则成盘</small><b>以此刻时间完成十二步排盘，锁定议题宫、主体宫与行动宫</b></span></article>
-            <article><i>解</i><span><small>个性命书</small><b>给出主运、机会、阻力、转机与三条现实核验动作</b></span></article>
+            <article><span><small>01 · 理解处境</small><b>只在问题过于宽泛时追问一次，随后由你确认是否起局</b></span></article>
+            <article><span><small>02 · 规则成盘</small><b>以此刻时间完成十二步排盘，锁定议题宫、主体宫与行动宫</b></span></article>
+            <article><span><small>03 · 形成命书</small><b>先给直接判断，再说明取用依据、机会、阻力与下一步行动</b></span></article>
           </div>
           <div className="ai-demo-answer">
             <span>本局命书摘要</span>

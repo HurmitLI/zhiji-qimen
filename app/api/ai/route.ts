@@ -1,4 +1,4 @@
-import { intakeResponseStillAsking, type AiReading, type AiRequest, type IntakeResult } from '../../../lib/ai';
+import { intakeBoundaryReply, intakeResponseStillAsking, type AiReading, type AiRequest, type IntakeResult } from '../../../lib/ai';
 import { buildQimenChart, type QimenChart } from '../../../lib/qimen';
 import { interpretChart } from '../../../lib/interpret';
 
@@ -116,6 +116,11 @@ export async function POST(request:Request){
     if(!validBody(body))return Response.json({error:'请求格式无效'},{status:400});
     if(body.mode==='intake'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请先写下想问的事情'},{status:400});
+      const boundary=intakeBoundaryReply(body.question);
+      if(boundary)return Response.json({
+        mode:'intake',ready:false,assistantMessage:boundary.message,
+        questionType:'人生方向',focus:'看未来主线',refinedQuestion:body.question.slice(0,120),contextSummary:'',options:boundary.options,
+      });
       const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-6).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
       const userTurnCount=messages.filter(item=>item.role==='user').length;
       const firstTurn=userTurnCount<=1;

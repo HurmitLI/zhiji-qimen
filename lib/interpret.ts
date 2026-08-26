@@ -28,6 +28,16 @@ const doorMeaning:Record<string,string>={
   开门:'条件适合被说清楚、被协商',休门:'节奏需要整理与恢复',生门:'可从增长和积累处切入',伤门:'动作会伴随摩擦与成本',
   杜门:'信息仍有遮蔽，先补证据',景门:'呈现会放大影响，也会放大表象',死门:'旧路径弹性有限，宜做减法',惊门:'突发消息和情绪反应值得留意',
 };
+const doorDecision:Record<string,{title:string;body:string}>={
+  开门:{title:'把主线放在对外连接与新机会',body:'机会更可能来自职位、合作、客户或公开表达。与其继续内部纠结，更适合主动接触两到三个具体入口，并优先选择职责、回报和期限说得清的那个。'},
+  休门:{title:'先恢复节奏，再决定长期方向',body:'当前重点不是立刻换轨，而是把精力、时间和生活秩序重新整理好。状态回稳后，真正值得留下的方向会更容易分辨。'},
+  生门:{title:'选择能够持续积累资源的方向',body:'更值得投入的是能让能力、收入、人脉或作品持续积累的路径。短期热闹不是重点，能否形成长期复利才是这局的判断标准。'},
+  伤门:{title:'先停止高摩擦消耗，再谈突破',body:'当前动作容易伴随冲突、反复和额外成本。先退出一项低回报消耗、划清承受边界，再判断是否值得继续突破。'},
+  杜门:{title:'关键信息未明，不宜仓促定方向',body:'真正影响判断的条件仍被遮住。先查清资源、承诺或机会中最不确定的一项，在信息补齐前不适合做不可逆的决定。'},
+  景门:{title:'先把能力做成可见成果',body:'机会来自被看见和被验证。优先完成一份作品、方案或公开成果，再用外界回应判断下一步，而不是继续停留在想象阶段。'},
+  死门:{title:'旧路径空间有限，先做减法再转向',body:'继续维持原有方式的回报正在收窄。更适合停止一项长期无效投入，腾出时间和资源，再试探新的方向。'},
+  惊门:{title:'变量偏多，先稳住判断再做大决定',body:'近期消息、情绪和外部变化容易互相放大。先把事实与猜测分开，等一个关键条件落定后再做大幅转向。'},
+};
 const godMeaning:Record<string,string>={
   值符:'主线清晰，关键在承担与取舍',螣蛇:'想象与疑虑交织，要区分事实和脑补',太阴:'幕后准备和柔性沟通更有帮助',六合:'协同与共识是重要变量',
   白虎:'阻力较硬，行动前要看成本边界',玄武:'仍有未明信息，避免只听单一说法',九地:'宜稳住基本盘，先做可重复的小动作',九天:'视野可以抬高，但落地仍要分段',
@@ -148,6 +158,20 @@ export function interpretChart(chart:QimenChart){
     return p?`${target.label}${symbolFor(chart,target,p)}落${p.direction}${p.name}`:'';
   }).filter(Boolean).join('；');
   const issueText=doorMeaning[issue.door||'']||starMeaning[issue.star||'']||godMeaning[issue.god||'']||'先从可确认的现实条件入手';
+  const baseDecision=doorDecision[issue.door||'']||{
+    title:mainTone==='bright'?'沿当前线索继续深入':mainTone==='caution'?'先解除主要限制，再决定方向':'先收拢选择，再确定主线',
+    body:`${issueText}。当前应先围绕${profile.label}处理最关键的一项条件，再决定是否扩大投入。`,
+  };
+  const decisionTitle=mainTone==='caution'&&brightDoors.has(issue.door||'')
+    ? '机会有入口，但当前还接不稳'
+    : baseDecision.title;
+  const decisionConstraint=chart.kongwangPalaces.includes(issue.palace)
+    ? '同时该宫临空亡，时间、承诺或资源容易出现落差，不适合一次性重投入。'
+    : mainTone==='caution'&&!cautionDoors.has(issue.door||'')
+      ? '但主体与事情之间的承接偏弱，先补足时间、能力或资源，再扩大动作。'
+      : '';
+  const decisionBody=`${baseDecision.body}${decisionConstraint}`;
+  const evidenceSummary=`本题按“${profile.label}”取用，观察${primarySymbol}；它落${issue.direction}${issue.name}，同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}。`;
   const matterText=doorMeaning[matter.door||'']||starMeaning[matter.star||'']||'当前动态仍需现实反馈确认';
   const environmentText=`值使${chart.zhishi.door}提示“${doorMeaning[chart.zhishi.door]}”，它描述时段气候，不等于本题结论。`;
   const chanceTitle=mainTone==='bright'?'条件已出现可验证的入口':mainTone==='caution'?'先解除主用神所在宫的限制':'从连续反馈中确认方向';
@@ -171,16 +195,12 @@ export function interpretChart(chart:QimenChart){
     `七天内：围绕“${primarySymbol}”收集三条独立的外部反馈，不只依赖自己的感觉。`,
     `只有主用神条件与现实反馈连续同向时再加码；值使门只作为时段节奏参考。`,
   ];
-  const oracle=mainTone==='bright'
-    ? `${primarySymbol}所在宫有承接之象，可以小步推进，但仍以现实反馈为准。`
-    : mainTone==='caution'
-      ? `${primarySymbol}所在宫目前受限，先补条件、降成本，再决定是否推进。`
-      : `${primarySymbol}所在宫吉凶交见，先验证关键条件，再决定继续、转向或等待。`;
+  const oracle=decisionBody;
 
   return {
     summary,insights,signals,checklist,fortuneChapters,actions,oracle,tone:mainTone,toneLabel,
     mainDoor:issue.door||chart.zhishi.door,mainSymbol:primarySymbol,mainLabel:profile.primary.label,
-    omenTitle,focusPalaces:[...new Set([issue.palace,self.palace,matter.palace])],issuePalace:issue.palace,
+    omenTitle,decisionTitle,evidenceSummary,focusPalaces:[...new Set([issue.palace,self.palace,matter.palace])],issuePalace:issue.palace,
     selfPalace:self.palace,actionPalace:matter.palace,matterPalace:matter.palace,
     environmentPalace:environment.palace,environmentDoor:chart.zhishi.door,
     environmentSummary:environmentText,primaryReason:profile.primary.reason,relation,compositeScore,
