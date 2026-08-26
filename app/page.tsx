@@ -1090,7 +1090,7 @@ export default function Home() {
             <div className="result-conclusion-block">
               <span className="mast-conclusion-label">本局判断</span>
               <h1 className="mast-answer concise">{verdict.title}</h1>
-              <p className="mast-answer-note">{verdict.condition}</p>
+              {!isSeeking && <p className="mast-answer-note">{verdict.condition}</p>}
             </div>
             <p className="mast-question-line"><span>所问</span>{displayQuestionText(chart.input.question)}</p>
           </div>
