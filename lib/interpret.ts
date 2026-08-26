@@ -125,7 +125,7 @@ export function interpretChart(chart:QimenChart){
   const compositeScore=palaceScore(issue,chart)+relationScore(self,issue)+environmentModifier;
   const mainTone=scoreTone(compositeScore);
   const toneLabel=mainTone==='bright'?'顺势':mainTone==='caution'?'慎势':'平势';
-  const omenTitle=mainTone==='bright'?'主线可进':mainTone==='caution'?'先整后动':'稳中辨路';
+  const omenTitle=mainTone==='bright'?'可以推进':mainTone==='caution'?'暂缓大动':'先试后定';
 
   const insights:Insight[]=[
     {label:profile.label,role:`主用神 · ${profile.primary.label}`,headline:`${primarySymbol}｜${issue.direction} · ${issue.name}`,body:`${profile.primary.reason}。${palaceSentence(issue,chart)}`,evidence:`主用${primarySymbol} / ${issue.name} / ${issue.star||'—'} / ${issue.door||'无门'} / ${issue.god||'无神'}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},

@@ -31,8 +31,18 @@ export type AiResponse=
   | {mode:'followup';answer:string};
 
 export async function requestAi<T extends AiResponse>(body:AiRequest):Promise<T>{
-  const response=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const data=await response.json() as T&{error?:string};
-  if(!response.ok)throw new Error(data.error||'解读服务暂时不可用');
+  let response:Response;
+  try{
+    response=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  }catch{
+    throw new Error('连接暂时中断，请稍后重试');
+  }
+  let data:T&{error?:string};
+  try{
+    data=await response.json() as T&{error?:string};
+  }catch{
+    throw new Error('解读服务暂时没有返回有效内容，请稍后重试');
+  }
+  if(!response.ok)throw new Error(data.error||'解读服务暂时不可用，请稍后重试');
   return data;
 }

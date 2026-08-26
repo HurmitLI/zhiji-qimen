@@ -80,9 +80,19 @@ function textFromResponse(data:{output_text?:string;output?:Array<{content?:Arra
 async function createResponse(input:unknown,instructions:string,format:unknown,maxOutputTokens:number,fallbackField?:string){
   const key=process.env.DEEPSEEK_API_KEY;
   if(!key)throw new Error('DEEPSEEK_API_KEY_NOT_CONFIGURED');
-  const response=await fetch(DEEPSEEK_URL,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,instructions,input:JSON.stringify(input),text:{format},reasoning:{effort:'none'},temperature:.35,max_output_tokens:maxOutputTokens})});
-  const data=await response.json() as {error?:{message?:string};output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>};
-  if(!response.ok)throw new Error(data.error?.message||`解读请求失败：${response.status}`);
+  let response:Response;
+  try{
+    response=await fetch(DEEPSEEK_URL,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,instructions,input:JSON.stringify(input),text:{format},reasoning:{effort:'none'},temperature:.35,max_output_tokens:maxOutputTokens})});
+  }catch{
+    throw new Error('READING_SERVICE_UNAVAILABLE');
+  }
+  let data:{error?:{message?:string};output_text?:string;output?:Array<{content?:Array<{type?:string;text?:string}>}>};
+  try{
+    data=await response.json() as typeof data;
+  }catch{
+    throw new Error('READING_SERVICE_UNAVAILABLE');
+  }
+  if(!response.ok)throw new Error('READING_SERVICE_UNAVAILABLE');
   const text=textFromResponse(data).trim();
   try{return JSON.parse(text) as Record<string,unknown>}catch{
     const start=text.indexOf('{');const end=text.lastIndexOf('}');
@@ -157,6 +167,6 @@ export async function POST(request:Request){
     const message=error instanceof Error?error.message:'解读服务暂时不可用';
     if(message==='DEEPSEEK_API_KEY_NOT_CONFIGURED')return Response.json({error:'解读服务尚未配置'},{status:503});
     if(message==='INVALID_CHART_INPUT')return Response.json({error:'盘面输入无效，请重新起局'},{status:400});
-    return Response.json({error:message.slice(0,240)},{status:502});
+    return Response.json({error:'个性命书暂时无法生成，请稍后重试'},{status:502});
   }
 }

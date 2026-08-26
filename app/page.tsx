@@ -549,8 +549,8 @@ export default function Home() {
         next.input.question.replace(/\s+/g, "");
       setSamePeriodNotice(
         sameQuestion
-          ? `你在同一时旬内重复问了同一件事，因此值使与大部分盘面保持不变。本次重点保留第一次结果，并用现实反馈继续核验。`
-          : `这次与最近一局处于同一时旬，出现相同值使是正常的；问题只会改变主用神与解读重点，不会重新随机一张盘。`,
+          ? `你在较短时间内重复问了同一件事。奇门排盘主要由起局时间决定，所以基础盘面会和上一次相似。建议先保留第一次结果，等现实出现新变化后再起局。`
+          : `这次起局与上一局相隔较近，仍处在同一个排盘时段，所以基础盘面可能相似。这不是随机重复；所问之事不同，本次重点观察的位置和解读也会不同。`,
       );
     } else {
       setSamePeriodNotice("");
@@ -909,12 +909,12 @@ export default function Home() {
       chart,
       selectedPalace || interpretation.issuePalace,
     );
-    const readingTitle = interpretation.omenTitle;
-    const displayReadingTitle = readingTitle.endsWith(interpretation.toneLabel)
-      ? readingTitle
-          .slice(0, -interpretation.toneLabel.length)
-          .replace(/[·・\s-]+$/, "")
-      : readingTitle;
+    const mastVerdict =
+      interpretation.tone === "bright"
+        ? "可以推进，但先从可验证的一步开始"
+        : interpretation.tone === "caution"
+          ? "暂缓大动作，先补条件、降成本"
+          : "可以试探，但暂不适合一次押注";
     const readingOracle = aiReading?.oracle || interpretation.oracle;
     const readingActions = aiReading?.actions || interpretation.actions;
     const readingChapters =
@@ -972,10 +972,11 @@ export default function Home() {
               {chart.input.questionType} · {chart.input.focus || focus} ·{" "}
               {chart.calendar.solar}
             </p>
-            <h1>
-              {displayReadingTitle} <i>·</i> {interpretation.toneLabel}
-            </h1>
-            <blockquote>“{chart.input.question}”</blockquote>
+            <span className="mast-conclusion-label">
+              本局结论 · {interpretation.toneLabel}
+            </span>
+            <h1>{mastVerdict}</h1>
+            <blockquote>所问：“{chart.input.question}”</blockquote>
             {chart.input.context && (
               <small>问事背景：{chart.input.context}</small>
             )}
@@ -1056,13 +1057,18 @@ export default function Home() {
             )}
             {aiError && (
               <div className="ai-fallback">
-                <b>基础命书已就绪</b>
-                <span>个性化解读暂未完成：{aiError}</span>
+                <div>
+                  <b>基础命书已就绪</b>
+                  <span>补充解读暂未生成，不影响盘面与本局结论。</span>
+                </div>
+                <button onClick={() => void generateAiReading(chart)}>
+                  重新生成
+                </button>
               </div>
             )}
             {samePeriodNotice && (
               <div className="same-period-note">
-                <b>同一时旬说明</b>
+                <b>为什么和上一局相似？</b>
                 <span>{samePeriodNotice}</span>
               </div>
             )}
@@ -1090,21 +1096,18 @@ export default function Home() {
                 <p>{aiReading.overview}</p>
               </div>
             )}
-            <div className="signal-reading-guide">
+            <div className="signal-section-heading">
               <div>
-                <span>这四项怎么看</span>
-                <h3>它们不是四个答案，而是同一次判断的四个角色。</h3>
+                <span>结论依据</span>
+                <h3>下面四张卡，解释这次结论从哪里来。</h3>
               </div>
-              <ol>
-                <li><i>01</i><b>先看核心</b><small>主用神：这道题主要观察谁或什么</small></li>
-                <li><i>02</i><b>再看你</b><small>主体宫：你当前的状态与承受能力</small></li>
-                <li><i>03</i><b>再看事情</b><small>事情宫：事件本身的动态与变化</small></li>
-                <li><i>04</i><b>最后看环境</b><small>时段值使：只看当下节奏，不直接定结果</small></li>
-              </ol>
-              <p>按“核心 → 你 → 事情 → 环境”阅读；点击任意卡片，可以查看它落在九宫中的依据。</p>
+              <p>
+                依次看：这道题的核心、你当前的状态、事情的发展、当下环境。
+                点击任意卡片，可查看它在九宫中的位置。
+              </p>
             </div>
             <div className="omen-signals compact-signals">
-              {interpretation.signals.map((s) => (
+              {interpretation.signals.map((s, index) => (
                 <button
                   key={s.label}
                   onClick={() => {
@@ -1112,6 +1115,7 @@ export default function Home() {
                     setResultTab("chart");
                   }}
                 >
+                  <i className="signal-index">0{index + 1}</i>
                   <ToneDot tone={s.tone} />
                   <small className="signal-label">
                     <span>{signalPlainLanguage[s.label] || s.label}</span>
