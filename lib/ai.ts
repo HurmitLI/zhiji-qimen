@@ -163,22 +163,22 @@ export function fallbackFollowupAnswer(chart:QimenChart,question:string,reading:
   const fallback=interpretChart(chart);
   const intent=classifyFollowupIntent(question);
   const actions=reading?.actions?.length===3?reading.actions:fallback.actions;
-  const oracle=reading?.oracle||fallback.oracle;
-  if(intent==='scope')return '这里可以继续问这局的结论、原因、阻力和下一步；如果换了主题或时间，需要重新起局。';
-  if(intent==='simplify')return `简单说：${fallback.decisionTitle}。先做这一件事：${actions[0]}`;
-  if(intent==='explain')return `简单说，这局不是让你立刻做不可逆的选择，而是先把“${fallback.questionAnchor}”最关键的成立条件验证清楚。${actions[0]}`;
-  if(intent==='action')return `先做这一件事：${actions[0]}做完后再看现实反馈是否连续同向；没有明确反馈，就先别扩大投入。`;
-  if(intent==='reason')return `这次主要看${fallback.mainSymbol}所在宫，而不是只凭值使门下结论。${fallback.evidenceSummary}${fallback.relation}。`;
+  const action=(actions[0]||'先确认一条最关键的现实信息。').replace(/^(?:今天|第一轮)[：:]\s*/,'');
+  if(intent==='scope')return '这里可以继续问结论、原因、阻力和下一步；换了主题或时间，需要重新起局。';
+  if(intent==='simplify')return `${fallback.decisionTitle}。先做：${action}`;
+  if(intent==='explain')return `意思是先验证“${fallback.questionAnchor}”最关键的成立条件，再决定是否继续。${action}`;
+  if(intent==='action')return `先做：${action}没有明确反馈前，不扩大投入。`;
+  if(intent==='reason')return `关键依据是${fallback.mainSymbol}所在宫的状态，以及你与这件事的承接关系。${fallback.relation}。`;
   if(/(?:继续|转向|放弃|留下|离开|要不要|该不该)/i.test(question)){
     const tendency=fallback.tone==='bright'?'更偏向继续，但只适合小步推进':fallback.tone==='caution'?'更偏向暂缓，先不要加码':'不急着二选一，先试后定';
-    return `就这局看，${tendency}。${actions[0]}如果七天内仍没有连续、可复核的正向反馈，再考虑转向。`;
+    return `${tendency}。${action}`;
   }
   if(/(?:阻力|卡点|瓶颈|卡住)/i.test(question)){
     const block=fallback.fortuneChapters.find(item=>item.label==='主要阻力');
-    return block?`当前最大的阻力是：${block.title}。${block.body}`:`当前最大的阻力不是机会多少，而是关键条件还没有被现实信息验证。${actions[0]}`;
+    return block?`最大阻力是：${block.title}。先处理这一项，再决定是否加码。`:`最大阻力是关键信息还没得到验证。${action}`;
   }
   if(/(?:七天|7天|一周|先验证)/i.test(question))return actions[1]||actions[0];
-  return `${oracle} 下一步先做：${actions[0]}`;
+  return `${fallback.decisionTitle}。先做：${action}`;
 }
 
 export type AiRequest=

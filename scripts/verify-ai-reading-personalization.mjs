@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { buildQimenChart } from '../lib/qimen.ts';
 import { interpretChart } from '../lib/interpret.ts';
-import { groundedReading } from '../app/api/ai/route.ts';
+import { compactFollowupAnswer, groundedReading } from '../app/api/ai/route.ts';
 
 const chart = buildQimenChart({
   date: new Date('2026-08-26T16:30:00+08:00'),
@@ -72,6 +72,12 @@ const otherCareerFallback = interpretChart(buildQimenChart({
 assert.match(otherCareerFallback.actions[0], /创业公司/);
 assert.doesNotMatch(otherCareerFallback.actions.join(''), /稳住积累|主动突破/);
 assert.doesNotMatch(otherCareerFallback.actions.join(''), /主用神|值使门|开门所代表/);
+
+const verboseFollowup = '你问工资何时能变多，具体该先谈哪些条件。盘面以开门为事业用神，落东震宫，同宫见天心、九天。建议优先谈三件事：职责边界、回报结构、兑现期限与考验方式。值使休门提示节奏需要整理恢复。';
+const compactFollowup = compactFollowupAnswer(verboseFollowup, '工资何时能变多，具体该先谈哪些条件？');
+assert.equal(compactFollowup, '建议优先谈三件事：职责边界、回报结构、兑现期限与考验方式。');
+assert.doesNotMatch(compactFollowup, /你问|盘面|主用神|值使/);
+assert.ok(compactFollowup.length <= 180);
 
 const homeworkChart = buildQimenChart({
   date: new Date('2026-08-26T18:17:00+08:00'),
