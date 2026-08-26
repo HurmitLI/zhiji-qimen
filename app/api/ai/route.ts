@@ -4,6 +4,7 @@ import { interpretChart } from '../../../lib/interpret.ts';
 
 const DEEPSEEK_URL='https://api.deepseek.com/responses';
 const MODEL='deepseek-v4-flash';
+const VEFAAS_AI_URL='https://si84sc05jtiar7dv0cumf.apigateway-cn-beijing.volceapi.com/api/ai';
 
 const baseInstructions=`你是“一局”产品的奇门命书解读智能体。奇门遁甲属于传统文化象意体系，不具有科学预测能力。
 必须遵守：
@@ -112,6 +113,24 @@ function validBody(body:unknown):body is AiRequest{
   return ['intake','clarify','reading','followup'].includes(String((body as {mode?:string}).mode));
 }
 
+async function proxyToVefaasAi(raw:string){
+  try{
+    const response=await fetch(VEFAAS_AI_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Yiju-Client':'local-preview'},
+      body:raw,
+      cache:'no-store',
+    });
+    const contentType=response.headers.get('content-type')||'application/json; charset=utf-8';
+    return new Response(await response.text(),{
+      status:response.status,
+      headers:{'Content-Type':contentType,'X-Yiju-AI-Source':'vefaas'},
+    });
+  }catch{
+    return Response.json({error:'本地暂时无法连接火山引擎解读服务'},{status:502});
+  }
+}
+
 export async function POST(request:Request){
   try{
     if(rateLimited(request))return Response.json({error:'请求过于频繁，请稍后再试'},{status:429});
@@ -119,6 +138,7 @@ export async function POST(request:Request){
     if(raw.length>60000)return Response.json({error:'请求内容过长'},{status:413});
     const body=JSON.parse(raw) as unknown;
     if(!validBody(body))return Response.json({error:'请求格式无效'},{status:400});
+    if(!process.env.DEEPSEEK_API_KEY&&process.env.NODE_ENV==='development')return proxyToVefaasAi(raw);
     if(body.mode==='intake'){
       if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请先写下想问的事情'},{status:400});
       const boundary=intakeBoundaryReply(body.question);
