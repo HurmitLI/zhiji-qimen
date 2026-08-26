@@ -1093,7 +1093,7 @@ export default function Home() {
             </p>
             <div className="result-conclusion-block">
               <span className="mast-conclusion-label">本局结论</span>
-              <h1>{aiReading?.decisionTitle || interpretation.decisionTitle}</h1>
+              <h1 className="mast-answer">{readingOracle}</h1>
             </div>
             <div className="result-question-block">
               <span>你问的是</span>
@@ -1199,8 +1199,8 @@ export default function Home() {
             )}
             <div className="oracle-hero">
               <div className="oracle-copy">
-                <span>结论说明</span>
-                <h2>{readingOracle}</h2>
+                <span>一句话摘要</span>
+                <h2>{aiReading?.decisionTitle || interpretation.decisionTitle}</h2>
                 <p>{interpretation.evidenceSummary}</p>
                 <small>
                   {interpretation.mainSymbol}不是测算结果，而是本题采用的传统观察依据；
