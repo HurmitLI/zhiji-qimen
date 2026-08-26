@@ -1,4 +1,4 @@
-import { palaceByNumber, type QimenChart, type Palace } from './qimen.ts';
+import { palaceByNumber, type QimenChart, type Palace } from './qimen';
 
 export type Tone='bright'|'neutral'|'caution';
 export type Insight={label:string;headline:string;body:string;evidence:string;palace:number;tone:Tone;role:string};
