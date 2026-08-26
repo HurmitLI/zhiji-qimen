@@ -1,4 +1,4 @@
-import { intakeBoundaryReply, intakeResponseStillAsking, type AiReading, type AiRequest, type IntakeResult } from '../../../lib/ai';
+import { classifyFollowupIntent, intakeBoundaryReply, intakeResponseStillAsking, type AiReading, type AiRequest, type IntakeResult } from '../../../lib/ai';
 import { buildQimenChart, type QimenChart } from '../../../lib/qimen';
 import { interpretChart } from '../../../lib/interpret';
 
@@ -17,7 +17,8 @@ const baseInstructions=`你是“一局”产品的奇门命书解读智能体�
 const clarifySchema={type:'json_schema',name:'clarified_qimen_question',schema:{type:'object',additionalProperties:false,properties:{refinedQuestion:{type:'string',minLength:6,maxLength:120},reason:{type:'string',minLength:8,maxLength:100}},required:['refinedQuestion','reason']}};
 const intakeSchema={type:'json_schema',name:'qimen_intake_turn',schema:{type:'object',additionalProperties:false,properties:{ready:{type:'boolean'},assistantMessage:{type:'string',minLength:8,maxLength:260},questionType:{type:'string',enum:['人生方向','事业发展','财富趋势','感情关系','学业成长','迁移远行']},focus:{type:'string',enum:['看未来主线','找机会来源','识别阻力','决定下一步']},refinedQuestion:{type:'string',minLength:6,maxLength:120},contextSummary:{type:'string',maxLength:180},options:{type:'array',minItems:0,maxItems:4,items:{type:'string',minLength:2,maxLength:36}}},required:['ready','assistantMessage','questionType','focus','refinedQuestion','contextSummary','options']}};
 const readingSchema={type:'json_schema',name:'qimen_destiny_reading',schema:{type:'object',additionalProperties:false,properties:{omenTitle:{type:'string',minLength:2,maxLength:12},oracle:{type:'string',minLength:20,maxLength:100},overview:{type:'string',minLength:40,maxLength:220},chapters:{type:'array',minItems:6,maxItems:6,items:{type:'object',additionalProperties:false,properties:{label:{type:'string',enum:['当下主运','人生课题','适合方向','机会来源','主要阻力','转机信号']},title:{type:'string',minLength:2,maxLength:24},body:{type:'string',minLength:35,maxLength:180},evidence:{type:'string',minLength:4,maxLength:80}},required:['label','title','body','evidence']}},actions:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:18,maxLength:100}},followupPrompts:{type:'array',minItems:3,maxItems:3,items:{type:'string',minLength:6,maxLength:50}}},required:['omenTitle','oracle','overview','chapters','actions','followupPrompts']}};
-const followupSchema={type:'json_schema',name:'qimen_followup_answer',schema:{type:'object',additionalProperties:false,properties:{answer:{type:'string',minLength:40,maxLength:500}},required:['answer']}};
+const followupSchema={type:'json_schema',name:'qimen_followup_answer',schema:{type:'object',additionalProperties:false,properties:{answer:{type:'string',minLength:4,maxLength:500}},required:['answer']}};
+const shortFollowupSchema={type:'json_schema',name:'qimen_short_followup_answer',schema:{type:'object',additionalProperties:false,properties:{answer:{type:'string',minLength:4,maxLength:120}},required:['answer']}};
 const rateBuckets=new Map<string,{count:number;resetAt:number}>();
 const RATE_WINDOW_MS=10*60*1000;
 const RATE_LIMIT=40;
@@ -164,9 +165,32 @@ export async function POST(request:Request){
     }
     const messages=(Array.isArray(body.messages)?body.messages:[]).slice(-8).map(item=>({role:item.role==='assistant'?'assistant':'user',content:String(item.content||'').slice(0,600)}));
     if(typeof body.question!=='string'||body.question.trim().length<2||body.question.length>600)return Response.json({error:'请输入本局追问'},{status:400});
+    const question=body.question.trim().slice(0,600);
+    const intent=classifyFollowupIntent(question);
+    if(intent==='scope')return Response.json({
+      mode:'followup',
+      answer:'可以。这里适合继续追问本局的结论、原因、机会、阻力和下一步；如果想换一件事，需要重新起局。你也可以直接说“再简单点”或“下一步怎么做”。',
+    });
     const chart=canonicalChart(body.chart);
     const fallback=interpretChart(chart);
-    const result=await createResponse({chart,fallback,reading:body.reading,messages,question:body.question.slice(0,600)},`${baseInstructions}\n任务：回答用户围绕“同一局”的追问。以fallback中的主用神、主体宫、事情宫为核心，值使只作为时段环境。先给直接回答，再说明盘面依据，最后给一个现实核验动作。如果问题已经变成新的时间、新的主题或要求重新预测，提示用户重新起局。只输出符合JSON Schema的JSON对象。`,followupSchema,1000,'answer');
+    const previousAnswer=[...messages].reverse().find(item=>item.role==='assistant')?.content||String((body.reading as {oracle?:unknown}|null)?.oracle||fallback.oracle);
+    const intentTask=intent==='simplify'
+      ? `任务：用户是在要求把上一条回答说得更简单，不是在要求重新解盘。只改写previousAnswer。\n- 以“简单说：”开头，最多3个短句，全文不超过100个汉字。\n- 保留原结论和最重要的一步行动。\n- 不展示盘面术语、依据清单、免责声明，不增加新判断。\n- 本轮是表达改写，不适用“必须展示盘面证据”的要求。`
+      : intent==='explain'
+        ? `任务：用户在问上一条回答中的词或句子是什么意思，不是在要求重新解盘。先直接解释用户所指，再用一个生活化例子说明；最多4个短句。只解释必要的一个概念，不复述整张盘。`
+        : intent==='action'
+          ? `任务：用户只想知道接下来具体怎么做。第一句直接给当前最优先的一步，再补充一个继续或停止的判断条件；最多4个短句，不重讲整张盘和全部术语。`
+          : intent==='reason'
+            ? `任务：用户在追问结论为什么成立。先用一句话回答，再选最关键的两项盘面依据；每项都要把术语翻译成白话。不要罗列整张盘，不重复行动建议。`
+            : `任务：先识别用户这句话真正想问什么，再围绕同一局直接作答，禁止机械重复上一条内容。以fallback中的主用神、主体宫、事情宫为核心，值使只作为时段环境。答案按用户问题决定结构，不强制每次都输出完整的“结论、依据、行动”三段。如果问题已经变成新的时间、新的主题或要求重新预测，提示用户重新起局。`;
+    const compactIntent=intent==='simplify'||intent==='explain';
+    const result=await createResponse(
+      compactIntent?{previousAnswer,question}:{chart,fallback,reading:body.reading,messages,previousAnswer,question},
+      `${baseInstructions}\n${intentTask}\n只输出符合JSON Schema的JSON对象。`,
+      intent==='simplify'?shortFollowupSchema:followupSchema,
+      intent==='simplify'?300:900,
+      'answer',
+    );
     return Response.json({mode:'followup',...result});
   }catch(error){
     const message=error instanceof Error?error.message:'解读服务暂时不可用';

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { buildQimenChart } from '../lib/qimen.ts';
 import { interpretChart } from '../lib/interpret.ts';
+import { classifyFollowupIntent } from '../lib/ai.ts';
+
+assert.equal(classifyFollowupIntent('再简单点'), 'simplify');
+assert.equal(classifyFollowupIntent('用人话说'), 'simplify');
+assert.equal(classifyFollowupIntent('这句话什么意思'), 'explain');
+assert.equal(classifyFollowupIntent('那我下一步怎么做'), 'action');
+assert.equal(classifyFollowupIntent('为什么这么判断'), 'reason');
+assert.equal(classifyFollowupIntent('你能和我聊天吗'), 'scope');
+assert.equal(classifyFollowupIntent('这份工作适合继续吗'), 'normal');
 
 const cases = [
   {
@@ -69,4 +78,4 @@ for (const questionType of topics) {
   assert.equal(tones.size, 3, `${questionType}必须能够产生顺、平、慎三类综合倾向`);
 }
 
-console.log('标准盘、时干定位、六类取用、同旬稳定性、八门分布与综合倾向验证全部通过。');
+console.log('追问意图、标准盘、时干定位、六类取用、同旬稳定性、八门分布与综合倾向验证全部通过。');

@@ -3,6 +3,7 @@ import type { QimenChart } from './qimen';
 export type AiChapter={label:string;title:string;body:string;evidence:string};
 export type AiReading={omenTitle:string;oracle:string;overview:string;chapters:AiChapter[];actions:string[];followupPrompts:string[]};
 export type ChatMessage={role:'user'|'assistant';content:string};
+export type FollowupIntent='simplify'|'explain'|'action'|'reason'|'scope'|'normal';
 export type IntakeResult={
   ready:boolean;
   assistantMessage:string;
@@ -40,6 +41,16 @@ export function intakeBoundaryReply(input:string){
     };
   }
   return null;
+}
+
+export function classifyFollowupIntent(input:string):FollowupIntent{
+  const clean=String(input||'').trim();
+  if(/能.{0,4}(和我)?聊天|可以.{0,4}聊天|你能做什么|这里能做什么|怎么用|如何使用/i.test(clean))return 'scope';
+  if(/再.{0,6}(简单|简短|精简|短|直白|通俗|人话)|说.{0,4}(简单|简短|直白|通俗)|简单点|简短点|精简点|用人话|别说术语|太长了/i.test(clean))return 'simplify';
+  if(/什么意思|指的是什么|怎么理解|解释一下|解释清楚|没看懂|看不懂|不明白|没明白/i.test(clean))return 'explain';
+  if(/下一步|怎么办|怎么做|先做什么|该做什么|具体做什么|从哪开始|如何行动/i.test(clean))return 'action';
+  if(/为什么|依据是什么|什么依据|怎么看出来|如何看出|凭什么|盘面依据/i.test(clean))return 'reason';
+  return 'normal';
 }
 
 export type AiRequest=
