@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:vefaas": "next build && mkdir -p .next/standalone/public .next/standalone/.next/static && cp -R public/. .next/standalone/public/ && cp -R .next/static/. .next/standalone/.next/static/",
     "start": "next start -p 3000",
+    "start:vefaas": "node server.js",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "test:qimen": "node --experimental-strip-types scripts/verify-qimen.mjs"
   },
