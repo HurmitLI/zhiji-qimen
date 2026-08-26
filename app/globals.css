@@ -4375,6 +4375,15 @@ body {
 .reading-badges em {
   color: #b59c62;
 }
+.result-screen .symbolic-scope-note {
+  display: inline-block;
+  margin-top: 10px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(163, 120, 50, 0.5);
+  color: #8d7652;
+  font-size: 9px;
+  line-height: 1.7;
+}
 .ai-status,
 .ai-fallback {
   display: flex;

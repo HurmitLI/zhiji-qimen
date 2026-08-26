@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { buildQimenChart } from '../lib/qimen.ts';
 import { interpretChart } from '../lib/interpret.ts';
-import { classifyFollowupIntent } from '../lib/ai.ts';
+import { classifyFollowupIntent, intakeRuleRoute } from '../lib/ai.ts';
 
 assert.equal(classifyFollowupIntent('再简单点'), 'simplify');
 assert.equal(classifyFollowupIntent('用人话说'), 'simplify');
@@ -10,6 +10,13 @@ assert.equal(classifyFollowupIntent('那我下一步怎么做'), 'action');
 assert.equal(classifyFollowupIntent('为什么这么判断'), 'reason');
 assert.equal(classifyFollowupIntent('你能和我聊天吗'), 'scope');
 assert.equal(classifyFollowupIntent('这份工作适合继续吗'), 'normal');
+const seekRoute = intakeRuleRoute('离我最近的矿泉水瓶子在哪');
+assert.equal(seekRoute?.intentStatus, 'supported_symbolic');
+assert.equal(seekRoute?.questionType, '寻人寻物');
+assert.equal(seekRoute?.focus, '找方位线索');
+assert.equal(seekRoute?.ready, true);
+assert.equal(intakeRuleRoute('我该不该转行'), null);
+assert.equal(intakeRuleRoute('这只股票明天会涨到多少钱')?.intentStatus, 'high_risk');
 
 const cases = [
   {
@@ -54,6 +61,16 @@ for (const { chart, reading } of readings) {
   assert.equal(reading.insights[2].palace, chart.timeStem.palace);
   assert.match(reading.summary, /值使.+只代表当前时段/);
 }
+const expandedTopics = ['项目决策', '寻人寻物', '方位择时'];
+const expandedReadings = expandedTopics.map(questionType => {
+  const chart = buildQimenChart({ date: sameTime, questionType, question: '扩展场景取用验证', city: '上海' });
+  return interpretChart(chart);
+});
+assert.equal(expandedReadings[0].mainSymbol, '开门');
+assert.match(expandedReadings[1].mainSymbol, /^时干/);
+assert.match(expandedReadings[1].decisionTitle, /^先查/);
+assert.equal(expandedReadings[1].fortuneChapters[0].label, '寻找主线');
+assert.match(expandedReadings[2].mainSymbol, /^驿马/);
 const legacyChart = structuredClone(readings[0].chart);
 delete legacyChart.timeStem;
 delete legacyChart.stemIndex;
@@ -78,4 +95,4 @@ for (const questionType of topics) {
   assert.equal(tones.size, 3, `${questionType}必须能够产生顺、平、慎三类综合倾向`);
 }
 
-console.log('追问意图、标准盘、时干定位、六类取用、同旬稳定性、八门分布与综合倾向验证全部通过。');
+console.log('问事路由、追问意图、标准盘、扩展取用、同旬稳定性、八门分布与综合倾向验证全部通过。');

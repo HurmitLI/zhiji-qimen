@@ -19,8 +19,10 @@ import {
   requestAi,
   intakeResponseStillAsking,
   intakeBoundaryReply,
+  intakeRuleRoute,
   type AiReading,
   type ChatMessage,
+  type IntakeIntentStatus,
   type IntakeResult,
 } from "../lib/ai";
 import { mediaForStage, ritualMedia } from "../lib/ritual-media";
@@ -32,8 +34,11 @@ const topicMeta = [
   { name: "感情关系", glyph: "缘", hint: "相处、边界、选择与关系走向" },
   { name: "学业成长", glyph: "学", hint: "学习、考试、能力与成长阶段" },
   { name: "迁移远行", glyph: "行", hint: "城市、远行、变化与新环境" },
+  { name: "项目决策", glyph: "策", hint: "方案、推进、合作与成立条件" },
+  { name: "寻人寻物", glyph: "寻", hint: "象征方位、环境特征与寻找顺序" },
+  { name: "方位择时", glyph: "时", hint: "行动方向、时机与备用方案" },
 ];
-const focusOptions = ["看未来主线", "找机会来源", "识别阻力", "决定下一步"];
+const focusOptions = ["看未来主线", "找机会来源", "识别阻力", "决定下一步", "找方位线索", "选择行动时机"];
 const starterPrompts = [
   {
     label: "人生方向",
@@ -401,6 +406,7 @@ export default function Home() {
   const [intakeOptions, setIntakeOptions] = useState<string[]>([]);
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [intakeReady, setIntakeReady] = useState(false);
+  const [intakeIntentStatus, setIntakeIntentStatus] = useState<IntakeIntentStatus | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -408,7 +414,7 @@ export default function Home() {
     () => (chart ? interpretChart(chart) : null),
     [chart],
   );
-  const selectedTopic = topicMeta.find((x) => x.name === topic)!;
+  const selectedTopic = topicMeta.find((x) => x.name === topic) || topicMeta[0];
 
   useEffect(() => {
     if (!chart) return;
@@ -583,6 +589,7 @@ export default function Home() {
     setIntakeMessages([]);
     setIntakeOptions([]);
     setIntakeReady(false);
+    setIntakeIntentStatus(null);
     setChart(null);
     setStage(0);
     setPaused(false);
@@ -612,12 +619,18 @@ export default function Home() {
     if (!item.reading) void generateAiReading(item.chart);
   }
   function applyIntakeResult(result: IntakeResult) {
-    setTopic(result.questionType);
-    setFocus(result.focus);
-    setQuestion(result.refinedQuestion);
-    setContext(result.contextSummary);
+    const canStart =
+      result.intentStatus === "supported" ||
+      result.intentStatus === "supported_symbolic";
+    if (canStart) {
+      setTopic(result.questionType);
+      setFocus(result.focus);
+      setQuestion(result.refinedQuestion);
+      setContext(result.contextSummary);
+    }
     setIntakeOptions(result.options || []);
-    setIntakeReady(result.ready);
+    setIntakeReady(canStart && result.ready);
+    setIntakeIntentStatus(result.intentStatus);
   }
   async function askIntake(
     nextQuestion: string,
@@ -642,28 +655,35 @@ export default function Home() {
       ]);
       setIntakeOptions(boundary.options);
       setIntakeReady(Boolean(boundary.preserveReady && hasSubstantiveQuestion));
+      setIntakeIntentStatus(boundary.preserveReady && hasSubstantiveQuestion ? "supported" : "unsupported");
+      return;
+    }
+    const routed = intakeRuleRoute(clean);
+    if (routed) {
+      setIntakeMessages([
+        ...nextMessages,
+        { role: "assistant", content: routed.assistantMessage },
+      ]);
+      applyIntakeResult(routed);
       return;
     }
     const substantiveMessages = nextMessages.filter(
       (item) => item.role === "user" && !intakeBoundaryReply(item.content),
     );
-    const mustFinish = substantiveMessages.length >= 2;
     setIntakeLoading(true);
     try {
       const response = await requestAi<{ mode: "intake" } & IntakeResult>({
         mode: "intake",
-        messages: substantiveMessages,
+        messages: nextMessages.slice(-6),
         question: clean,
       });
       const normalizedResponse = {
         ...response,
-        ready: mustFinish
-          ? true
-          : response.ready && !intakeResponseStillAsking(response),
-        options: mustFinish ? [] : response.options,
-        assistantMessage: mustFinish
-          ? `这一问已经整理完成。已归入“${response.questionType}”，重点看“${response.focus}”。确认后即可起局。`
-          : response.assistantMessage,
+        ready:
+          (response.intentStatus === "supported" ||
+            response.intentStatus === "supported_symbolic") &&
+          response.ready &&
+          !intakeResponseStillAsking(response),
       };
       const assistantMessage: ChatMessage = {
         role: "assistant",
@@ -679,17 +699,45 @@ export default function Home() {
         const words = substantiveMessages
           .map((item) => item.content)
           .join(" ");
+        const routedFallback = intakeRuleRoute(words);
+        if (routedFallback) {
+          setIntakeMessages([
+            ...nextMessages,
+            { role: "assistant", content: routedFallback.assistantMessage },
+          ]);
+          applyIntakeResult(routedFallback);
+          return;
+        }
         const fallbackTopic = /感情|关系|伴侣|恋爱|婚姻/.test(words)
           ? "感情关系"
           : /工作|事业|职业|公司|跳槽|创业/.test(words)
             ? "事业发展"
+            : /项目|方案|产品|合作|推进/.test(words)
+              ? "项目决策"
             : /钱|收入|财富|生意|资源/.test(words)
               ? "财富趋势"
               : /考试|学习|学业|读书/.test(words)
                 ? "学业成长"
                 : /城市|搬家|远行|出国|迁移/.test(words)
                   ? "迁移远行"
-                  : "人生方向";
+                  : /方位|择时|什么时候行动|哪个方向/.test(words)
+                    ? "方位择时"
+                    : /人生|未来|方向|继续|转向|等待/.test(words)
+                      ? "人生方向"
+                      : null;
+        if (!fallbackTopic) {
+          setIntakeReady(false);
+          setIntakeIntentStatus("unsupported");
+          setIntakeOptions(["换问事业选择", "换问关系走向", "换问人生方向"]);
+          setIntakeMessages([
+            ...nextMessages,
+            {
+              role: "assistant",
+              content: "我还不能确认这是否属于当前支持的奇门问事范围，因此不会把它强行归为人生方向。请换成一件关于事业、关系、学业、财富、迁移、项目、寻物或方位时机的具体问题。",
+            },
+          ]);
+          return;
+        }
         const fallbackFocus = /阻力|卡住|困难|原因/.test(words)
           ? "识别阻力"
           : /机会|可能|来源/.test(words)
@@ -703,6 +751,7 @@ export default function Home() {
         setQuestion(original.slice(0, 120));
         setContext(words.slice(0, 180));
         setIntakeReady(true);
+        setIntakeIntentStatus("supported");
         setIntakeOptions([]);
         setIntakeMessages([
           ...nextMessages,
@@ -732,6 +781,7 @@ export default function Home() {
     setIntakeMessages([]);
     setIntakeOptions([]);
     setIntakeReady(false);
+    setIntakeIntentStatus(null);
     setScreen("intake");
     void askIntake(question.trim(), []);
   }
@@ -742,9 +792,15 @@ export default function Home() {
     void askIntake(value);
   }
   function skipIntakeQuestion() {
-    if (intakeLoading || intakeReady) return;
+    if (
+      intakeLoading ||
+      intakeReady ||
+      intakeIntentStatus === "unsupported" ||
+      intakeIntentStatus === "high_risk"
+    ) return;
     setIntakeOptions([]);
     setIntakeReady(true);
+    setIntakeIntentStatus("supported");
     setAiError("");
     setIntakeMessages((messages) => [
       ...messages,
@@ -941,6 +997,7 @@ export default function Home() {
   }
 
   if (screen === "result" && chart && interpretation) {
+    const isSeeking = chart.input.questionType === "寻人寻物";
     const selected = palaceByNumber(
       chart,
       selectedPalace || interpretation.issuePalace,
@@ -1014,6 +1071,11 @@ export default function Home() {
               {aiReading && <b>个性命书已生成</b>}
               {aiLoading && <em>命书生成中…</em>}
             </div>
+            {isSeeking && (
+              <small className="symbolic-scope-note">
+                寻物象意体验 · 只提供优先方位、环境特征与寻找顺序，不是精确定位
+              </small>
+            )}
           </div>
           <div className="mast-actions">
             <button
@@ -1117,8 +1179,8 @@ export default function Home() {
             <div className="book-section-heading">
               <div>
                 <span>{aiReading ? "个性命书" : "一局命书"}</span>
-                <h3>命书六章</h3>
-                <p>不是六次预测，而是把同一张盘拆成六个阅读视角。</p>
+                <h3>{isSeeking ? "寻找线索六步" : "命书六章"}</h3>
+                <p>{isSeeking ? "按主线、状态、方位、环境、遮蔽与下一步逐层排查。" : "不是六次预测，而是把同一张盘拆成六个阅读视角。"}</p>
               </div>
               {bookExpanded && (
                 <button onClick={() => setBookExpanded(false)}>收起细节</button>
@@ -1127,16 +1189,16 @@ export default function Home() {
             <div className="chapter-reading-guide">
               <span>
                 <i>01—03</i>
-                <b>先认清局面</b>
-                <small>主运、课题、方向</small>
+                <b>{isSeeking ? "先缩小范围" : "先认清局面"}</b>
+                <small>{isSeeking ? "主线、状态、方位" : "主运、课题、方向"}</small>
               </span>
               <em>→</em>
               <span>
                 <i>04—06</i>
-                <b>再寻找行动线索</b>
-                <small>机会、阻力、转机</small>
+                <b>{isSeeking ? "再按顺序排查" : "再寻找行动线索"}</b>
+                <small>{isSeeking ? "环境、遮蔽、下一步" : "机会、阻力、转机"}</small>
               </span>
-              <p>建议按顺序读；每章底部的“查看依据”会带你回到对应的九宫位置。</p>
+              <p>{isSeeking ? "方位是象意排序，不是坐标；每一步都应与现实动线交叉核对。" : "建议按顺序读；每章底部的“查看依据”会带你回到对应的九宫位置。"}</p>
             </div>
             <div className={`fortune-grid ${bookExpanded ? "expanded" : "collapsed"}`}>
               {(bookExpanded ? readingChapters : readingChapters.slice(0, 3)).map((item, i) => {
@@ -1164,7 +1226,7 @@ export default function Home() {
             </div>
             {!bookExpanded && (
               <button className="book-expand-button" onClick={() => setBookExpanded(true)}>
-                继续阅读 04—06 · 机会、阻力与转机 →
+                {isSeeking ? "继续查看 04—06 · 环境、遮蔽与寻找顺序 →" : "继续阅读 04—06 · 机会、阻力与转机 →"}
               </button>
             )}
             <div className="book-action-block">
@@ -1592,6 +1654,8 @@ export default function Home() {
                   <button disabled={intakeLoading || intakeInput.trim().length < 2}>发送 <i>↑</i></button>
                 </form>
                 {!intakeLoading && intakeMessages.some((message) => message.role === "assistant") && (
+                  intakeIntentStatus !== "unsupported" &&
+                  intakeIntentStatus !== "high_risk" &&
                   <button className="intake-skip-button" onClick={skipIntakeQuestion}>
                     跳过追问，直接按当前问题起局 →
                   </button>
@@ -1720,6 +1784,12 @@ export default function Home() {
                 </small>
               </span>
             </div>
+            {topic === "寻人寻物" && (
+              <div className="confirm-note">
+                <b>寻物象意体验</b>
+                <span>结果会给优先方位、环境特征与寻找顺序，不提供精确坐标，也不保证与物品实际位置一致。</span>
+              </div>
+            )}
             <div className="confirm-note">
               <b>传统文化体验</b>
               <span>不处理生死、医疗、法律与投资涨跌等高风险问题。</span>

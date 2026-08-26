@@ -4,7 +4,9 @@ export type AiChapter={label:string;title:string;body:string;evidence:string};
 export type AiReading={omenTitle:string;oracle:string;overview:string;chapters:AiChapter[];actions:string[];followupPrompts:string[]};
 export type ChatMessage={role:'user'|'assistant';content:string};
 export type FollowupIntent='simplify'|'explain'|'action'|'reason'|'scope'|'normal';
+export type IntakeIntentStatus='supported'|'supported_symbolic'|'unsupported'|'high_risk';
 export type IntakeResult={
+  intentStatus:IntakeIntentStatus;
   ready:boolean;
   assistantMessage:string;
   questionType:string;
@@ -13,6 +15,39 @@ export type IntakeResult={
   contextSummary:string;
   options:string[];
 };
+
+export function intakeRuleRoute(input:string):IntakeResult|null{
+  const clean=String(input||'').trim();
+  const seekObject=/(?:手机|钥匙|钱包|证件|东西|物品|瓶(?:子)?|杯(?:子)?|耳机|背包|包|戒指|文件|宠物|猫|狗|某个人|家人).{0,16}(?:在哪|在哪里|哪儿|位置|方位|找不到|不见了|丢了)|(?:找|寻找|找回).{0,20}(?:手机|钥匙|钱包|证件|东西|物品|瓶(?:子)?|杯(?:子)?|耳机|背包|戒指|文件|宠物|猫|狗|人)/i.test(clean);
+  if(seekObject){
+    return {
+      intentStatus:'supported_symbolic',
+      ready:true,
+      assistantMessage:'我理解这是寻物或寻人问题，不会把它归为人生方向。可以按传统奇门的寻物取用起局，结果只给象征性方位、环境特征和寻找顺序，不是精确定位。',
+      questionType:'寻人寻物',
+      focus:'找方位线索',
+      refinedQuestion:`以传统奇门象意观察：${clean.slice(0,90)}（只看方位与环境特征）`,
+      contextSummary:'用户希望寻找具体的人或物品。',
+      options:[],
+    };
+  }
+  const highRiskMedical=/(?:诊断|确诊|得了什么病|是不是.{0,8}(?:癌|病)|该吃什么药|用什么药|手术.{0,8}(?:成功|能不能)|会不会死|还能活多久)/i.test(clean);
+  const highRiskLegal=/(?:会不会胜诉|官司能赢吗|判几年|怎么规避法律|逃避处罚|法律结论)/i.test(clean);
+  const highRiskInvestment=/(?:股票|基金|期货|币|黄金).{0,18}(?:涨|跌|买入|卖出|梭哈|点位|价格|收益)|(?:买|卖|投资).{0,12}(?:哪只股票|哪个币)/i.test(clean);
+  if(highRiskMedical||highRiskLegal||highRiskInvestment){
+    return {
+      intentStatus:'high_risk',
+      ready:false,
+      assistantMessage:'这类问题涉及医疗、法律或具体投资决策，不能用本产品替代专业判断，因此不会进入起局。你可以改问与自身选择、关系、学业、事业或迁移有关的非高风险问题。',
+      questionType:'不适用',
+      focus:'不适用',
+      refinedQuestion:clean.slice(0,120),
+      contextSummary:'',
+      options:['换问事业选择','换问关系走向','换问人生方向'],
+    };
+  }
+  return null;
+}
 
 export function intakeResponseStillAsking(result:Pick<IntakeResult,'assistantMessage'|'options'>){
   const message=String(result.assistantMessage||'').trim();

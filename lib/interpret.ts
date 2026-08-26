@@ -16,8 +16,10 @@ const topicProfiles:Record<string,TopicProfile>={
   感情关系:{label:'关系课题',verb:'把事实、感受和边界分开表达',primary:{kind:'god',value:'六合',label:'关系用神',reason:'公开版未采集双方性别，统一以六合观察关系连接与协同'},auxiliary:[]},
   学业成长:{label:'成长路径',verb:'收拢范围并形成可重复的练习节奏',primary:{kind:'door',value:'景门',label:'学业用神',reason:'考试、呈现与成果验证以景门为主用神'},auxiliary:[{kind:'star',value:'天辅',label:'学习辅助',reason:'天辅辅助观察学习、表达与方法'}]},
   迁移远行:{label:'迁移方向',verb:'先确认路线、资源与备用方案',primary:{kind:'yima',label:'迁移用神',reason:'未指定目标方位时，以驿马观察迁移与环境变化'},auxiliary:[{kind:'door',value:'开门',label:'通行辅助',reason:'开门辅助观察外部入口与通行条件'}]},
+  寻人寻物:{label:'寻找线索',verb:'按优先方位和环境特征分区寻找，并同步核对现实动线',primary:{kind:'time',label:'寻物用神',reason:'寻人寻物先看时干所代表的对象与当前动态'},auxiliary:[{kind:'god',value:'玄武',label:'隐匿辅助',reason:'玄武辅助观察遮蔽、遗忘和不易察觉的位置'}]},
+  方位择时:{label:'行动时机',verb:'把方向、时段和现实条件组合成一次可撤回的行动',primary:{kind:'yima',label:'方位用神',reason:'方位与行动时机先看驿马所代表的移动方向和变化线索'},auxiliary:[{kind:'door',value:'开门',label:'通行辅助',reason:'开门辅助观察行动入口与外部通行条件'}]},
   事业选择:{label:'事业入口',verb:'把目标、角色与合作条件说清楚',primary:{kind:'door',value:'开门',label:'事业用神',reason:'事业、职位与公开机会以开门为主用神'},auxiliary:[]},
-  项目决策:{label:'项目入口',verb:'先验证最关键的成立条件',primary:{kind:'door',value:'开门',label:'项目用神',reason:'项目推进与正式协作以开门为主用神'},auxiliary:[]},
+  项目决策:{label:'项目入口',verb:'先验证项目最关键的成立条件',primary:{kind:'door',value:'开门',label:'项目用神',reason:'项目推进、方案落地与正式协作以开门为主用神'},auxiliary:[{kind:'star',value:'天心',label:'判断辅助',reason:'天心辅助观察专业判断与修正能力'}]},
   关系沟通:{label:'沟通关系',verb:'把事实、感受和诉求分开表达',primary:{kind:'god',value:'六合',label:'关系用神',reason:'关系与协同以六合为主用神'},auxiliary:[{kind:'star',value:'天辅',label:'沟通辅助',reason:'天辅辅助观察表达与理解'}]},
   学习考试:{label:'学习路径',verb:'收拢范围并形成可重复的练习节奏',primary:{kind:'door',value:'景门',label:'学业用神',reason:'考试与成果呈现以景门为主用神'},auxiliary:[{kind:'star',value:'天辅',label:'学习辅助',reason:'天辅辅助观察学习方法'}]},
   出行安排:{label:'行动路径',verb:'优先确认资源、路线与备用方案',primary:{kind:'yima',label:'迁移用神',reason:'出行与变化先看驿马'},auxiliary:[{kind:'door',value:'开门',label:'通行辅助',reason:'开门辅助观察通行条件'}]},
@@ -123,6 +125,7 @@ function relationText(self:Palace,issue:Palace){
 export function interpretChart(chart:QimenChart){
   const timeStem=chart.timeStem||{stem:chart.timeStemVisible,palace:chart.zhishi.palace};
   const profile=topicProfiles[chart.input.questionType]||topicProfiles.开放问题;
+  const isSeeking=chart.input.questionType==='寻人寻物';
   const issueNo=targetPalace(chart,profile.primary)||timeStem.palace;
   const issue=palaceByNumber(chart,issueNo);
   const self=palaceByNumber(chart,chart.dayStem.palace);
@@ -135,7 +138,7 @@ export function interpretChart(chart:QimenChart){
   const compositeScore=palaceScore(issue,chart)+relationScore(self,issue)+environmentModifier;
   const mainTone=scoreTone(compositeScore);
   const toneLabel=mainTone==='bright'?'顺势':mainTone==='caution'?'慎势':'平势';
-  const omenTitle=mainTone==='bright'?'可以推进':mainTone==='caution'?'暂缓大动':'先试后定';
+  const omenTitle=isSeeking?'先循线索':mainTone==='bright'?'可以推进':mainTone==='caution'?'暂缓大动':'先试后定';
 
   const insights:Insight[]=[
     {label:profile.label,role:`主用神 · ${profile.primary.label}`,headline:`${primarySymbol}｜${issue.direction} · ${issue.name}`,body:`${profile.primary.reason}。${palaceSentence(issue,chart)}`,evidence:`主用${primarySymbol} / ${issue.name} / ${issue.star||'—'} / ${issue.door||'无门'} / ${issue.god||'无神'}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},
@@ -162,21 +165,32 @@ export function interpretChart(chart:QimenChart){
     title:mainTone==='bright'?'沿当前线索继续深入':mainTone==='caution'?'先解除主要限制，再决定方向':'先收拢选择，再确定主线',
     body:`${issueText}。当前应先围绕${profile.label}处理最关键的一项条件，再决定是否扩大投入。`,
   };
-  const decisionTitle=mainTone==='caution'&&brightDoors.has(issue.door||'')
-    ? '机会有入口，但当前还接不稳'
-    : baseDecision.title;
+  const decisionTitle=isSeeking
+    ? `先查${issue.direction}方，再沿最后使用动线回溯`
+    : mainTone==='caution'&&brightDoors.has(issue.door||'')
+      ? '机会有入口，但当前还接不稳'
+      : baseDecision.title;
   const decisionConstraint=chart.kongwangPalaces.includes(issue.palace)
     ? '同时该宫临空亡，时间、承诺或资源容易出现落差，不适合一次性重投入。'
     : mainTone==='caution'&&!cautionDoors.has(issue.door||'')
       ? '但主体与事情之间的承接偏弱，先补足时间、能力或资源，再扩大动作。'
       : '';
-  const decisionBody=`${baseDecision.body}${decisionConstraint}`;
+  const decisionBody=isSeeking
+    ? `按传统象意，优先留意${issue.direction}方向及与“${issue.element}”相关的环境特征；同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}。这只是缩小寻找顺序的象意线索，不是对物品位置的精确定位。`
+    : `${baseDecision.body}${decisionConstraint}`;
   const evidenceSummary=`本题按“${profile.label}”取用，观察${primarySymbol}；它落${issue.direction}${issue.name}，同宫见${issue.door||'无门'}、${issue.star||'无星'}、${issue.god||'无神'}。`;
   const matterText=doorMeaning[matter.door||'']||starMeaning[matter.star||'']||'当前动态仍需现实反馈确认';
   const environmentText=`值使${chart.zhishi.door}提示“${doorMeaning[chart.zhishi.door]}”，它描述时段气候，不等于本题结论。`;
   const chanceTitle=mainTone==='bright'?'条件已出现可验证的入口':mainTone==='caution'?'先解除主用神所在宫的限制':'从连续反馈中确认方向';
   const blockTitle=chart.kongwangPalaces.includes(issue.palace)?'主用神临空，先防承诺落空':cautionDoors.has(issue.door||'')?'主用神所在宫推进成本偏高':'不要让模糊代替判断';
-  const fortuneChapters:FortuneChapter[]=[
+  const fortuneChapters:FortuneChapter[]=isSeeking?[
+    {label:'寻找主线',title:`${primarySymbol} · ${issue.direction}`,body:`寻人寻物先看时干所在宫。当前象意先指向${issue.direction}${issue.name}，把它作为第一轮排查方向，不理解成精确坐标。`,evidence:`主用${primarySymbol} / ${issue.name} / ${issue.door||'无门'}`,palace:issue.palace,tone:mainTone},
+    {label:'对象状态',title:`${issue.door||issue.star||issue.name} · ${toneLabel}`,body:`${issueText}。它描述的是物品或对象可能呈现的状态与遮蔽方式，只用于安排寻找先后。`,evidence:`${issue.name} / ${issue.star||'—'} / ${issue.god||'—'}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},
+    {label:'优先方位',title:`${issue.direction} · ${issue.element}象`,body:`先检查相对当前位置的${issue.direction}侧，再留意与${issue.element}象相关、被遮挡或容易忽略的区域；不要把方位理解成地图定位。`,evidence:`主用${primarySymbol} / ${issue.name} / 五行${issue.element}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},
+    {label:'环境特征',title:auxiliaryText||`${matter.direction}${matter.name}`,body:`事情宫落${matter.direction}${matter.name}：${matterText}。${auxiliaryText||'再结合玄武和门的状态观察遮蔽、收纳与遗忘线索'}。`,evidence:`时干${timeStem.stem} / ${matter.name}${auxiliaryText?` / ${auxiliaryText}`:''}`,palace:matter.palace,tone:scoreTone(palaceScore(matter,chart))},
+    {label:'主要遮蔽',title:chart.kongwangPalaces.includes(issue.palace)?'线索可能与预想有落差':blockTitle,body:`${chart.kongwangPalaces.includes(issue.palace)?'主用宫临空亡，先检查记忆是否偏差、物品是否已被移动。':'优先排除被覆盖、被收纳、视线死角和最后使用后随手放置的位置。'}`,evidence:`${primarySymbol} / ${issue.door||issue.star||issue.god||issue.name}${chart.kongwangPalaces.includes(issue.palace)?' / 临空亡':''}`,palace:issue.palace,tone:'caution'},
+    {label:'下一步寻找',title:'按分区顺序寻找，不重复翻同一区域',body:`先查${issue.direction}侧，再回溯最后使用动线；每查完一个区域就做标记。若现实线索与象意不符，以监控、定位功能和他人记忆为准。`,evidence:`主用${primarySymbol} / 值使${chart.zhishi.door} / 玄武辅助`,palace:environment.palace,tone:'bright'},
+  ]:[
     {label:'当下主运',title:`${primarySymbol} · ${toneLabel}`,body:`本题不以值使门直接定吉凶，而以${primarySymbol}所在宫为核心。${issueText}。`,evidence:`主用${primarySymbol} / ${issue.name} / 综合${compositeScore}`,palace:issue.palace,tone:mainTone},
     {label:'人生课题',title:`日干${chart.dayStem.stem} · ${self.name}`,body:`${relation}。当前更重要的是看清自己能承接多少，而不是只追逐一个听起来确定的答案。`,evidence:`日干${chart.dayStem.stem} / ${self.name} / ${self.star||'—'}`,palace:self.palace,tone:scoreTone(palaceScore(self,chart))},
     {label:'适合方向',title:`${issue.direction} · ${issue.element}象`,body:`可把${issue.direction}作为${profile.label}的象征性观察方向，代表相关条件更值得核验，不把它理解成精确地理指令。`,evidence:`主用${primarySymbol} / ${issue.name} / 五行${issue.element}`,palace:issue.palace,tone:scoreTone(palaceScore(issue,chart))},
@@ -190,7 +204,11 @@ export function interpretChart(chart:QimenChart){
     `围绕${issue.direction}·${issue.name}，今天找一条可以被外部事实验证的信息。`,
     `${profile.verb}，只做一个低成本、可撤回的小动作。`,
   ];
-  const actions=[
+  const actions=isSeeking?[
+    `第一轮：从相对当前位置的${issue.direction}侧开始，按桌面、地面、收纳处和遮挡处逐区检查。`,
+    '第二轮：回忆最后一次使用、移动和清理的完整动线，并询问可能接触过它的人。',
+    '仍未找到时：停止重复翻找，改用设备定位、监控、失物招领或重新走一遍现实路线。',
+  ]:[
     `今天：${profile.verb}，同时写下一个明确的停止条件。`,
     `七天内：围绕“${primarySymbol}”收集三条独立的外部反馈，不只依赖自己的感觉。`,
     `只有主用神条件与现实反馈连续同向时再加码；值使门只作为时段节奏参考。`,
