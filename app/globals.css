@@ -5707,6 +5707,184 @@ body {
   }
 }
 
+/* Result reading guides: translate Qimen roles before showing the terminology */
+.signal-reading-guide {
+  margin-top: 28px;
+  padding: 24px 26px 20px;
+  border: 1px solid rgba(114, 97, 73, 0.12);
+  border-radius: 20px;
+  background:
+    linear-gradient(110deg, rgba(244, 239, 227, 0.78), rgba(255, 255, 255, 0.7)),
+    rgba(255, 255, 255, 0.72);
+}
+.signal-reading-guide > div span {
+  color: #99764b;
+  font: 9px var(--sans);
+  letter-spacing: 0.14em;
+}
+.signal-reading-guide h3 {
+  margin: 7px 0 0;
+  color: #33322e;
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 400;
+}
+.signal-reading-guide ol {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.signal-reading-guide li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 9px;
+  padding: 0 16px;
+  border-left: 1px solid rgba(78, 70, 58, 0.1);
+}
+.signal-reading-guide li:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.signal-reading-guide li:last-child {
+  padding-right: 0;
+}
+.signal-reading-guide li i {
+  grid-row: 1 / 3;
+  color: #a4855c;
+  font: 8px var(--sans);
+  font-style: normal;
+}
+.signal-reading-guide li b {
+  color: #44433e;
+  font-size: 11px;
+  font-weight: 500;
+}
+.signal-reading-guide li small {
+  margin-top: 4px;
+  color: #85837c;
+  font: 9px/1.55 var(--sans);
+}
+.signal-reading-guide > p {
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(78, 70, 58, 0.08);
+  color: #77746c;
+  font: 9px/1.7 var(--sans);
+}
+.unified-book-page .compact-signals {
+  margin-top: 10px;
+}
+.unified-book-page .compact-signals .signal-label {
+  display: block;
+}
+.unified-book-page .compact-signals .signal-label > span,
+.unified-book-page .compact-signals .signal-label > em {
+  display: block;
+}
+.unified-book-page .compact-signals .signal-label > span {
+  color: #66645f;
+  font-size: 10px;
+}
+.unified-book-page .compact-signals .signal-label > em {
+  margin-top: 4px;
+  color: #aaa69d;
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+.unified-book-page .compact-signals .signal-detail {
+  margin-top: 8px;
+}
+.chapter-reading-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid rgba(22, 22, 22, 0.08);
+  border-radius: 16px;
+  background: rgba(248, 246, 240, 0.74);
+}
+.chapter-reading-guide > span {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+}
+.chapter-reading-guide > span i {
+  grid-row: 1 / 3;
+  color: #9b7b4f;
+  font: 8px var(--sans);
+  font-style: normal;
+}
+.chapter-reading-guide > span b {
+  color: #45433e;
+  font-size: 11px;
+  font-weight: 500;
+}
+.chapter-reading-guide > span small {
+  margin-top: 3px;
+  color: #8b8881;
+  font: 9px var(--sans);
+}
+.chapter-reading-guide > em {
+  color: #b49a73;
+  font-style: normal;
+}
+.chapter-reading-guide > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: 11px;
+  border-top: 1px solid rgba(22, 22, 22, 0.07);
+  color: #7d7a73;
+  font: 9px/1.65 var(--sans);
+}
+
+@media (max-width: 880px) {
+  .signal-reading-guide ol {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 16px;
+  }
+  .signal-reading-guide li:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .signal-reading-guide {
+    padding: 20px 18px 17px;
+    border-radius: 17px;
+  }
+  .signal-reading-guide h3 {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  .signal-reading-guide ol {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .signal-reading-guide li,
+  .signal-reading-guide li:nth-child(3) {
+    padding: 11px 0;
+    border-top: 1px solid rgba(78, 70, 58, 0.08);
+    border-left: 0;
+  }
+  .signal-reading-guide li:first-child {
+    border-top: 0;
+  }
+  .chapter-reading-guide {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .chapter-reading-guide > em {
+    display: none;
+  }
+}
+
 /* Conversational oracle home + AI intake */
 .landing-screen {
   overflow: visible;

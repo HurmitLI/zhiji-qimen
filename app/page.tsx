@@ -133,6 +133,12 @@ const layerNames = {
   door: "八门",
   god: "八神",
 } as const;
+const signalPlainLanguage: Record<string, string> = {
+  主用神: "这道题主要看什么",
+  主体宫: "你现在是什么状态",
+  事情宫: "事情正在怎样发展",
+  时段值使: "当下环境是否顺手",
+};
 type Layer = keyof typeof layerNames;
 type Screen =
   | "landing"
@@ -1073,6 +1079,19 @@ export default function Home() {
                 <p>{aiReading.overview}</p>
               </div>
             )}
+            <div className="signal-reading-guide">
+              <div>
+                <span>这四项怎么看</span>
+                <h3>它们不是四个答案，而是同一次判断的四个角色。</h3>
+              </div>
+              <ol>
+                <li><i>01</i><b>先看核心</b><small>主用神：这道题主要观察谁或什么</small></li>
+                <li><i>02</i><b>再看你</b><small>主体宫：你当前的状态与承受能力</small></li>
+                <li><i>03</i><b>再看事情</b><small>事情宫：事件本身的动态与变化</small></li>
+                <li><i>04</i><b>最后看环境</b><small>时段值使：只看当下节奏，不直接定结果</small></li>
+              </ol>
+              <p>按“核心 → 你 → 事情 → 环境”阅读；点击任意卡片，可以查看它落在九宫中的依据。</p>
+            </div>
             <div className="omen-signals compact-signals">
               {interpretation.signals.map((s) => (
                 <button
@@ -1083,9 +1102,12 @@ export default function Home() {
                   }}
                 >
                   <ToneDot tone={s.tone} />
-                  <small>{s.label}</small>
+                  <small className="signal-label">
+                    <span>{signalPlainLanguage[s.label] || s.label}</span>
+                    <em>奇门术语 · {s.label}</em>
+                  </small>
                   <b>{s.value}</b>
-                  <em>{s.detail}</em>
+                  <em className="signal-detail">{s.detail}</em>
                 </button>
               ))}
             </div>
@@ -1093,11 +1115,25 @@ export default function Home() {
               <div>
                 <span>{aiReading ? "AI 个性命书" : "一局命书"}</span>
                 <h3>命书六章</h3>
-                <p>主运、课题、方向、机会、阻力与转机。</p>
+                <p>不是六次预测，而是把同一张盘拆成六个阅读视角。</p>
               </div>
               {bookExpanded && (
                 <button onClick={() => setBookExpanded(false)}>收起细节</button>
               )}
+            </div>
+            <div className="chapter-reading-guide">
+              <span>
+                <i>01—03</i>
+                <b>先认清局面</b>
+                <small>主运、课题、方向</small>
+              </span>
+              <em>→</em>
+              <span>
+                <i>04—06</i>
+                <b>再寻找行动线索</b>
+                <small>机会、阻力、转机</small>
+              </span>
+              <p>建议按顺序读；每章底部的“查看依据”会带你回到对应的九宫位置。</p>
             </div>
             <div className={`fortune-grid ${bookExpanded ? "expanded" : "collapsed"}`}>
               {(bookExpanded ? readingChapters : readingChapters.slice(0, 3)).map((item, i) => {
@@ -1125,7 +1161,7 @@ export default function Home() {
             </div>
             {!bookExpanded && (
               <button className="book-expand-button" onClick={() => setBookExpanded(true)}>
-                还有机会、阻力与转机三章 · 展开阅读 →
+                继续阅读 04—06 · 机会、阻力与转机 →
               </button>
             )}
             <div className="book-action-block">
