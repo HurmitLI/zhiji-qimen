@@ -1092,17 +1092,13 @@ export default function Home() {
               {chart.calendar.solar}
             </p>
             <div className="result-conclusion-block">
-              <span className="mast-conclusion-label">本局结论</span>
-              <h1 className="mast-answer">{readingOracle}</h1>
+              <span className="mast-conclusion-label">本局判断</span>
+              <h1 className="mast-answer concise">{verdict.title}</h1>
+              <p className="mast-answer-note">{verdict.condition}</p>
             </div>
             <div className="result-question-block">
               <span>你问的是</span>
               <blockquote>“{chart.input.question}”</blockquote>
-            </div>
-            <div className="conditional-verdict">
-              <span>{verdict.label}</span>
-              <b>{verdict.title}</b>
-              <small>{verdict.condition}</small>
             </div>
             {chart.input.context && (
               <div className="result-context-block">
@@ -1199,8 +1195,8 @@ export default function Home() {
             )}
             <div className="oracle-hero">
               <div className="oracle-copy">
-                <span>一句话摘要</span>
-                <h2>{aiReading?.decisionTitle || interpretation.decisionTitle}</h2>
+                <span>详细说明</span>
+                <h2>{readingOracle}</h2>
                 <p>{interpretation.evidenceSummary}</p>
                 <small>
                   {interpretation.mainSymbol}不是测算结果，而是本题采用的传统观察依据；

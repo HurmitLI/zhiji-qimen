@@ -236,6 +236,43 @@
   line-height: 1.42 !important;
   letter-spacing: -0.022em !important;
 }
+.result-screen .result-conclusion-block {
+  position: relative;
+  padding: 9px 0 13px 25px;
+}
+.result-screen .result-conclusion-block::before {
+  position: absolute;
+  top: 12px;
+  bottom: 17px;
+  left: 0;
+  width: 2px;
+  content: "";
+  background: linear-gradient(180deg, #a97a38, rgba(169, 122, 56, .14));
+}
+.result-screen .result-mast h1.mast-answer.concise {
+  width: min(900px, 100%);
+  max-width: 900px;
+  margin: 13px 0 12px;
+  font-family: var(--serif) !important;
+  font-size: clamp(38px, 4.25vw, 58px) !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.042em !important;
+  text-wrap: balance;
+}
+.result-screen .result-mast p.mast-answer-note {
+  max-width: 820px;
+  margin: 0 !important;
+  color: #68675f !important;
+  font: 400 14px/1.75 var(--sans) !important;
+  letter-spacing: .015em !important;
+}
+.result-screen .oracle-hero h2 {
+  max-width: 1040px;
+  font-size: clamp(24px, 2.25vw, 32px);
+  line-height: 1.55;
+  letter-spacing: -.018em;
+}
 .result-screen .result-question-block,
 .result-screen .result-context-block {
   min-width: 0;
@@ -360,6 +397,17 @@
   .result-screen .result-mast h1.mast-answer {
     font-size: 27px !important;
     line-height: 1.48 !important;
+  }
+  .result-screen .result-conclusion-block {
+    padding-left: 17px;
+  }
+  .result-screen .result-mast h1.mast-answer.concise {
+    font-size: 34px !important;
+    line-height: 1.24 !important;
+  }
+  .result-screen .result-mast p.mast-answer-note {
+    font-size: 12px !important;
+    line-height: 1.7 !important;
   }
 }
 
