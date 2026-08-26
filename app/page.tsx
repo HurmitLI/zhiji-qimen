@@ -135,13 +135,21 @@ const stages = [
   },
 ] as const;
 const layerNames = {
-  all: "全盘",
-  sky: "天盘",
-  earth: "地盘",
+  all: "完整盘",
+  sky: "天盘干",
+  earth: "地盘干",
   star: "九星",
   door: "八门",
   god: "八神",
 } as const;
+const layerHelp: Record<keyof typeof layerNames, string> = {
+  all: "同时查看每个宫位中的天盘干、地盘干、九星、八门与八神。",
+  sky: "只突出事情当前呈现出来的状态与动作。",
+  earth: "只突出事情原有的基础条件。",
+  star: "只突出事情的能力、行动方式与发展特征。",
+  door: "只突出事情推进时的入口、节奏与阻力。",
+  god: "只突出外部关系、主导力量与环境气氛。",
+};
 const signalPlainLanguage: Record<string, string> = {
   主用神: "这道题主要看什么",
   主体宫: "你现在是什么状态",
@@ -625,12 +633,15 @@ export default function Home() {
     setAiError("");
     const boundary = intakeBoundaryReply(clean);
     if (boundary) {
+      const hasSubstantiveQuestion = existingMessages.some(
+        (item) => item.role === "user" && !intakeBoundaryReply(item.content),
+      );
       setIntakeMessages([
         ...nextMessages,
         { role: "assistant", content: boundary.message },
       ]);
       setIntakeOptions(boundary.options);
-      setIntakeReady(false);
+      setIntakeReady(Boolean(boundary.preserveReady && hasSubstantiveQuestion));
       return;
     }
     const substantiveMessages = nextMessages.filter(
@@ -810,23 +821,29 @@ export default function Home() {
           </button>
         </header>
         <section className="ritual-workbench">
-          <aside className="stage-rail">
-            <p>起局进度</p>
-            {stages.map((s, i) => (
-              <button
-                key={s.name}
-                className={`${i === stage ? "current" : ""} ${i < stage ? "done" : ""}`}
-                onClick={() => {
-                  setStage(i);
-                  setPaused(true);
-                }}
-              >
-                <i>{pad(i + 1)}</i>
-                <span>{s.name}</span>
-              </button>
-            ))}
-          </aside>
           <div className="ritual-main">
+            <details className="ritual-step-directory">
+              <summary>
+                <span>{pad(stage + 1)} / 12</span>
+                <b>{stages[stage].name}</b>
+                <small>查看起局步骤</small>
+              </summary>
+              <div>
+                {stages.map((s, i) => (
+                  <button
+                    key={s.name}
+                    className={`${i === stage ? "current" : ""} ${i < stage ? "done" : ""}`}
+                    onClick={() => {
+                      setStage(i);
+                      setPaused(true);
+                    }}
+                  >
+                    <i>{pad(i + 1)}</i>
+                    <span>{s.name}</span>
+                  </button>
+                ))}
+              </div>
+            </details>
             <div className="stage-heading">
               <p>
                 {stages[stage].key} · {pad(stage + 1)}/12
@@ -942,10 +959,10 @@ export default function Home() {
     const addPalaceMarker = (palace: number, label: string) => {
       palaceMarkers[palace] = [...(palaceMarkers[palace] || []), label];
     };
-    addPalaceMarker(interpretation.issuePalace, interpretation.mainLabel);
-    addPalaceMarker(interpretation.selfPalace, "主体");
-    addPalaceMarker(interpretation.matterPalace, "事情");
-    addPalaceMarker(interpretation.environmentPalace, "时段");
+    addPalaceMarker(interpretation.issuePalace, "本题核心");
+    addPalaceMarker(interpretation.selfPalace, "你本人");
+    addPalaceMarker(interpretation.matterPalace, "事情发展");
+    addPalaceMarker(interpretation.environmentPalace, "当下环境");
     return (
       <main
         className={`app-shell result-screen paged-result fortune-${interpretation.tone}`}
@@ -1187,24 +1204,25 @@ export default function Home() {
           <section className="result-view chart-view">
             <div className="chart-toolbar">
               <div>
-                <span>本局盘面依据</span>
-                <h2>九宫全盘</h2>
-                <p>每一宫都是命书的原始依据。点击宫位，可查看天、地、星、门、神的对应关系。</p>
+                <span>这张盘怎么读</span>
+                <h2>九宫是本局的证据地图</h2>
+                <p>重点不是看懂所有术语，而是找到被标出的宫位：它们分别代表本题核心、你本人、事情发展和当下环境。点击一格，右侧会解释它怎样影响结论。</p>
               </div>
+            </div>
+            <details className="layer-guide">
+              <summary><b>专业分层（可选）</b><span>只想看结论可以跳过</span></summary>
               <div className="layer-switch">
                 {(Object.keys(layerNames) as Layer[]).map((key) => (
-                  <button
-                    className={layer === key ? "active" : ""}
-                    key={key}
-                    onClick={() => setLayer(key)}
-                  >
+                  <button className={layer === key ? "active" : ""} key={key} onClick={() => setLayer(key)}>
                     {layerNames[key]}
                   </button>
                 ))}
               </div>
-            </div>
+              <p>{layerHelp[layer]}</p>
+            </details>
             <div className="explorer-layout">
               <div className="matrix-stage">
+                <div className="matrix-use-note">先找有文字标签的宫位，再点击查看解释；没有标签的宫位只作为全盘背景。</div>
                 <PalaceMatrix
                   chart={chart}
                   layer={layer}
@@ -1215,43 +1233,42 @@ export default function Home() {
                 />
               </div>
               <aside className="evidence-panel">
-                <p>
-                  {selected.direction} · {selected.name}
-                </p>
+                <p>你点的是：{selected.direction} · {selected.name}</p>
                 <em className="selected-role">
                   {palaceMarkers[selected.palace]?.join(" · ") || "全盘辅助宫位"}
                 </em>
                 <h3>
                   {selected.trigram}宫 <i>五行{selected.element}</i>
                 </h3>
+                <div className="palace-role-explain">这格在本局中代表：{palaceMarkers[selected.palace]?.join("、") || "辅助观察位置"}</div>
                 <div className="palace-symbols">
                   <span>
-                    <small>天盘</small>
+                    <small>天盘 · 当前表现</small>
                     <b>{selected.skyStem || "—"}</b>
                   </span>
                   <span>
-                    <small>地盘</small>
+                    <small>地盘 · 基础条件</small>
                     <b>{selected.earthStem || "—"}</b>
                   </span>
                   <span>
-                    <small>九星</small>
+                    <small>九星 · 行动特征</small>
                     <b>{selected.star}</b>
                   </span>
                   <span>
-                    <small>八门</small>
+                    <small>八门 · 推进节奏</small>
                     <b>{selected.door || "无门"}</b>
                   </span>
                   <span>
-                    <small>八神</small>
+                    <small>八神 · 外部气氛</small>
                     <b>{selected.god || "无神"}</b>
                   </span>
                   <span>
-                    <small>干关系</small>
+                    <small>干关系 · 承接状态</small>
                     <b>{selected.stemRelation || "—"}</b>
                   </span>
                 </div>
                 <div className="evidence-meaning">
-                  <span>传统象意</span>
+                  <span>这格怎样影响结论</span>
                   <p>
                     {interpretation.insights.find(
                       (x) => x.palace === selected.palace,
@@ -1259,8 +1276,9 @@ export default function Home() {
                       "此宫不是当前三条主线之一，可结合盘面图层查看，不单独做确定性推断。"}
                   </p>
                 </div>
-                <div className="index-list">
-                  <b>本局索引</b>
+                <details className="chart-advanced-index">
+                  <summary>查看专业索引</summary>
+                  <div className="index-list">
                   <span>
                     值符 {chart.zhifu.star} ·{" "}
                     {palaceByNumber(chart, chart.zhifu.palace).name}
@@ -1279,7 +1297,8 @@ export default function Home() {
                       .map((n) => palaceByNumber(chart, n).name)
                       .join("、")}
                   </span>
-                </div>
+                  </div>
+                </details>
               </aside>
             </div>
             <div className="page-turn">
@@ -1297,11 +1316,15 @@ export default function Home() {
         {resultTab === "ask" && (
           <section className="result-view ask-page">
             <div className="ask-heading">
-              <span>同局追问 · 问命官</span>
-              <h2>继续问这一局</h2>
-              <p>回答会沿用刚才的时间盘、你的问题和命书，不会重新随机起盘。</p>
+              <span>同局追问</span>
+              <h2>针对刚才的结论，继续问清原因和下一步</h2>
+              <p>这里不会重新算一遍，只回答这局为什么这样判断、主要阻力是什么，以及下一步可以怎么做。</p>
             </div>
             <div className="ask-shell">
+              <div className="ask-purpose">
+                <b>你可以从下面三个问题开始，也可以直接写自己的追问。</b>
+                <span>如果问题已经换了主题或时间，应重新起局。</span>
+              </div>
               <div className="prompt-chips">
                 {followupPrompts.map((prompt) => (
                   <button
@@ -1313,17 +1336,9 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <div className="chat-stream" aria-live="polite">
-                {chatMessages.length === 0 ? (
-                  <div className="chat-empty">
-                    <i>问</i>
-                    <b>你还想看清什么？</b>
-                    <span>
-                      可以追问选择、阻力、机会或下一步，不适合的问题会被明确说明。
-                    </span>
-                  </div>
-                ) : (
-                  chatMessages.map((message, i) => (
+              {(chatMessages.length > 0 || chatLoading) && (
+                <div className="chat-stream" aria-live="polite">
+                  {chatMessages.length > 0 && chatMessages.map((message, i) => (
                     <div
                       key={`${message.role}-${i}`}
                       className={`chat-message ${message.role}`}
@@ -1333,15 +1348,15 @@ export default function Home() {
                       </small>
                       <p>{message.content}</p>
                     </div>
-                  ))
-                )}
-                {chatLoading && (
-                  <div className="chat-thinking">
-                    <i />
-                    <span>正在结合本局九宫寻找依据…</span>
-                  </div>
-                )}
-              </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="chat-thinking">
+                      <i />
+                      <span>正在结合本局九宫寻找依据…</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <form className="chat-form" onSubmit={submitFollowup}>
                 <textarea
                   value={chatInput}
@@ -1643,6 +1658,10 @@ export default function Home() {
               <div><b>{topic}</b><i>·</i><b>{focus}</b></div>
               <small>如需改变所问方向，请返回对话重新说明；这里不再让你手动理解分类。</small>
             </div>
+            <div className="time-purpose-note">
+              <b>为什么需要起局时间？</b>
+              <span>奇门排盘用时间确定节令、四柱、阴阳遁和九宫位置。默认采用你点击“开始起局”时的北京时间，一般无需修改。</span>
+            </div>
             <div className="confirm-time-simple">
               <div>
                 <span>起局时刻</span>
@@ -1664,7 +1683,7 @@ export default function Home() {
                   }
                 }}
               >
-                {timeMode === "now" ? "修改" : "恢复此刻"}
+                {timeMode === "now" ? "改用其他时间" : "使用现在"}
               </button>
             </div>
             {timeMode === "custom" && (
@@ -1680,11 +1699,11 @@ export default function Home() {
             )}
             <details className="confirm-advanced">
               <summary>
-                <span>更多设置</span>
-                <small>所在城市可选，仅用于命书记载</small>
+                <span>记录地点（可选）</span>
+                <small>不参与排盘，只显示在这份命书中</small>
               </summary>
               <label>
-                <span>所在城市（可选）</span>
+                <span>城市名称</span>
                 <input
                   value={city}
                   onChange={(e) => setCity(e.target.value)}

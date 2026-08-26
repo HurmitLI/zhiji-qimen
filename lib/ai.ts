@@ -32,6 +32,13 @@ export function intakeBoundaryReply(input:string){
       options:['我想问事业选择','我想问关系走向','我想看未来方向'],
     };
   }
+  if(/能.{0,4}(和我)?聊天|可以.{0,4}聊天|你能做什么|这里能做什么|怎么用|如何使用|现在应该做什么|接下来做什么/i.test(clean)){
+    return {
+      message:'可以交流，但这里的对话只服务于起局问事。我能帮你把困惑整理成一个明确问题、在必要时追问一个关键点，并确定该看事业、学业、关系还是人生方向。现在你可以确认当前问题起局，或补充一条与这件事直接相关的情况。',
+      options:[],
+      preserveReady:true,
+    };
+  }
   return null;
 }
 
