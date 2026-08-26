@@ -23,6 +23,8 @@ assert.equal(classifySeekScope('我想找一个能帮助事业的贵人'), 'symb
 assert.equal(patronRoute?.questionType, '寻人寻物');
 assert.match(patronRoute?.assistantMessage||'', /从何方来、何时相应/);
 assert.equal(classifySeekScope('我想找一枚不在我身边、可能遗落在外地的戒指'), 'symbolic_or_distant');
+assert.equal(classifySeekScope('未来三个月更适合稳住当前工作，还是主动寻找新机会？'), null);
+assert.equal(intakeRuleRoute('未来三个月更适合稳住当前工作，还是主动寻找新机会？'), null);
 assert.equal(intakeRuleRoute('我该不该转行'), null);
 assert.equal(intakeRuleRoute('这只股票明天会涨到多少钱')?.intentStatus, 'high_risk');
 for (let stage = 0; stage <= 10; stage += 1) {

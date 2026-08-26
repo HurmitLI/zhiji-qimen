@@ -19,6 +19,10 @@ export type IntakeResult={
 
 export function classifySeekScope(input:string):SeekScope|null{
   const clean=String(input||'').trim();
+  const careerDecision=/(?:工作|事业|职业|公司|跳槽|转行|离职|入职|岗位|职位|现职|新机会)/i.test(clean)
+    &&/(?:适合|应该|该不该|要不要|继续|稳住|转向|主动|突破|寻找|选择|等待|发展)/i.test(clean);
+  const explicitSeekDirection=/(?:从哪里来|从哪来|在哪里遇到|在哪遇到|什么方位|哪个方位|具体位置)/i.test(clean);
+  if(careerDecision&&!explicitSeekDirection)return null;
   const locator=/(?:在哪|在哪里|哪儿|什么位置|具体位置|离我最近|身边|附近|找不到|不见了|丢了|找回|寻找|想找|求)/i;
   const distantSignal=/(?:不在|远离).{0,8}(?:我)?(?:身边|附近|这里)|(?:外地|异地|远方|远处|别处|海外|国外|外省|外市)|(?:遗落|丢失).{0,8}(?:在外|路上|途中)/i;
   const symbolicTarget=/(?:贵人|伯乐|缘分|机缘|机会|合作伙伴|合伙人|客户|人脉|资源|适合的(?:工作|房子|住处|城市|方向)|远方.{0,6}(?:人|物|机会))/i;
