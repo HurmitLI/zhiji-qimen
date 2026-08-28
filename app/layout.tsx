@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import '@fontsource-variable/noto-serif-sc';
 import './globals.css';
 import './v36.css';
@@ -16,6 +16,12 @@ export const metadata: Metadata = {
     images: [{ url: '/qimen-og.png', width: 1200, height: 630, alt: '知几 · 观时定局，见势知行' }],
   },
   twitter: { card: 'summary_large_image', images: ['/qimen-og.png'] },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

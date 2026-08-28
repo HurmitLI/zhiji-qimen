@@ -5108,3 +5108,53 @@
     font-size: 10px !important;
   }
 }
+
+/* v65: keep every mobile header below the iPhone safe area. The legacy
+   bottom-tab rule used fixed positioning and could pull the result tabs over
+   the brand; on phones the tabs now stay inside the header's normal flow. */
+@media (max-width: 760px) {
+  .landing-screen .oracle-topbar,
+  .intake-entry-screen .oracle-topbar,
+  .intake-chat-screen .oracle-topbar {
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+  }
+
+  .wizard-screen,
+  .result-screen {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 16px) !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .result-screen .result-oracle-topbar {
+    display: grid;
+    grid-template-columns: auto minmax(82px, 1fr) auto;
+    gap: 8px;
+    align-content: center;
+    height: 64px;
+    min-height: 64px;
+    padding: 9px 12px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .result-screen .result-oracle-topbar .result-nav {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    order: 0;
+    width: 100%;
+    height: 36px;
+    margin: 0;
+    padding: 2px;
+    transform: none !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7);
+  }
+
+  .result-screen .result-oracle-topbar .result-nav button {
+    min-width: 0;
+    height: 30px;
+    padding: 0 6px;
+  }
+}
