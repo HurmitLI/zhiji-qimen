@@ -46,6 +46,7 @@ const PALACE_INFO: Record<number,{name:string;direction:string;trigram:string;el
   9:{name:'离宫',direction:'南',trigram:'离',element:'火'},
 };
 const YIMA_TABLE: Record<string,string> = {申:'寅',子:'寅',辰:'寅',寅:'申',午:'申',戌:'申',亥:'巳',卯:'巳',未:'巳',巳:'亥',酉:'亥',丑:'亥'};
+const BRANCHES = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 const STEM_ELEMENT: Record<string,string> = {甲:'木',乙:'木',丙:'火',丁:'火',戊:'土',己:'土',庚:'金',辛:'金',壬:'水',癸:'水'};
 const SHENG: Record<string,string> = {木:'火',火:'土',土:'金',金:'水',水:'木'};
 const KE: Record<string,string> = {木:'土',土:'水',水:'火',火:'金',金:'木'};
@@ -53,18 +54,36 @@ const KE: Record<string,string> = {木:'土',土:'水',水:'火',火:'金',金:'
 export type Palace = {
   palace:number; name:string; direction:string; trigram:string; element:string;
   earthStem?:string; skyStem?:string; stemRelation?:string; star?:string; door?:string; god?:string;
+  starElement?:string; starPalaceRelation?:string; doorElement?:string; doorPalaceRelation?:string;
+  hostingNote?:string;
   isCenter:boolean; hostsCenter:boolean;
 };
 
 export type QimenChart = {
-  input:{questionType:string;question:string;city:string;time:string;timezone:string;focus?:string;context?:string};
+  input:{questionType:string;question:string;city:string;time:string;timezone:string;focus?:string;context?:string;experiencePalace?:number;questionGoal?:string;outputPreference?:'direct'|'detailed';relationshipMode?:'男问女'|'女问男'|'同性关系'};
   calendar:{solar:string;lunar:string;year:string;month:string;day:string;time:string;activeJie:string;nextJie:string;nextJieAt:string};
   dunType:string; yuan:string; juNumber:number; xunshou:string; hiddenYi:string; timeStemVisible:string;
   kongwang:string[]; kongwangPalaces:number[]; dayKongwang:string[]; dayKongwangPalaces:number[];
   yima:{branch:string;palace:number}; zhifu:{star:string;palace:number}; zhishi:{door:string;palace:number};
   dayStem:{stem:string;palace:number}; timeStem:{stem:string;palace:number};
+  yearStem?:{stem:string;palace:number}; monthStem?:{stem:string;palace:number};
   stemIndex:Record<string,number>; doorIndex:Record<string,number>; starIndex:Record<string,number>;
+  detectedPatterns?:Array<{name:string;palace:number;detail:string;nature:'吉'|'凶'}>;
+  ruleset?:{id:string;name:string;engine:string};
   palaces:Palace[]; warnings:string[];
+};
+
+export type SkillChartRequest={
+  questionType:string;
+  question:string;
+  questionGoal:string;
+  context:string;
+  city:string;
+  timezone:string;
+  calendarType:'solar'|'now';
+  timeInput:string;
+  outputPreference:'direct'|'detailed';
+  relationshipMode?:'男问女'|'女问男'|'同性关系';
 };
 
 function rotate<T>(items:T[], start:T){ const index=items.indexOf(start); return [...items.slice(index),...items.slice(0,index)]; }
@@ -77,11 +96,15 @@ function relation(a?:string,b?:string){
 }
 function formatSolar(s:{toYmdHms():string}){ return s.toYmdHms().slice(0,16); }
 
-export function buildQimenChart(params:{date:Date;questionType:string;question:string;city:string;focus?:string;context?:string}):QimenChart{
-  const {date,questionType,question,city,focus,context}=params;
+export function buildQimenChart(params:{date:Date;questionType:string;question:string;city:string;focus?:string;context?:string;experiencePalace?:number}):QimenChart{
+  const {date,questionType,question,city,focus,context,experiencePalace}=params;
   const solar=Solar.fromYmdHms(date.getFullYear(),date.getMonth()+1,date.getDate(),date.getHours(),date.getMinutes(),0);
   const lunar=solar.getLunar();
-  const prevJie=lunar.getPrevJie(false), nextJie=lunar.getNextJie(false);
+  const lunarWithJieQi=lunar as typeof lunar&{
+    getPrevJieQi(wholeDay?:boolean):ReturnType<typeof lunar.getPrevJie>;
+    getNextJieQi(wholeDay?:boolean):ReturnType<typeof lunar.getNextJie>;
+  };
+  const prevJie=lunarWithJieQi.getPrevJieQi(false), nextJie=lunarWithJieQi.getNextJieQi(false);
   const activeJie=prevJie.getName();
   const dunType=YANG_TERMS.has(activeJie)?'阳遁':'阴遁';
   const dayGanzhi=lunar.getDayInGanZhiExact();
@@ -95,23 +118,27 @@ export function buildQimenChart(params:{date:Date;questionType:string;question:s
   const timeVisible=timeGan==='甲'?hiddenYi:timeGan;
   const rawXun=stemPalace(earthPlate,hiddenYi), rawTime=stemPalace(earthPlate,timeVisible);
   const xunPalace=host(rawXun), timePalace=host(rawTime);
-  let palaceOrder:number[],starOrder:string[],doorOrder:string[],godOrder:string[],outerEarth:string[];
-  if(dunType==='阳遁'){
-    palaceOrder=rotate(ROTATION_RING,timePalace);
-    starOrder=rotate(STAR_RING,STAR_RING[ROTATION_RING.indexOf(xunPalace)]);
-    doorOrder=rotate(DOOR_RING,DOOR_RING[ROTATION_RING.indexOf(xunPalace)]);
-    godOrder=GOD_RING_YANG; outerEarth=ROTATION_RING.map(p=>earthPlate[p]);
-  } else {
-    const rr=[...ROTATION_RING].reverse(),rs=[...STAR_RING].reverse(),rd=[...DOOR_RING].reverse();
-    palaceOrder=rotate(rr,timePalace);
-    starOrder=rotate(rs,STAR_RING[ROTATION_RING.indexOf(xunPalace)]);
-    doorOrder=rotate(rd,DOOR_RING[ROTATION_RING.indexOf(xunPalace)]);
-    godOrder=GOD_RING_YIN; outerEarth=rr.map(p=>earthPlate[p]);
-  }
+  const clockwisePalaces=rotate(ROTATION_RING,timePalace);
+  const starOrder=rotate(STAR_RING,STAR_RING[ROTATION_RING.indexOf(xunPalace)]);
+  const outerEarth=ROTATION_RING.map(p=>earthPlate[p]);
+  const timeBranch=lunar.getTimeInGanZhi()[1];
+  const xunBranch=timeXun[1];
+  const branchSteps=(BRANCHES.indexOf(timeBranch)-BRANCHES.indexOf(xunBranch)+12)%12;
+  const direction=dunType==='阳遁'?1:-1;
+  const rawZhishiPalace=((xunPalace-1+direction*branchSteps)%9+9)%9+1;
+  const zhishiPalace=host(rawZhishiPalace);
+  const zhishiDoor=DOOR_RING[ROTATION_RING.indexOf(xunPalace)];
+  const doorPalaces=rotate(ROTATION_RING,zhishiPalace);
+  const doorOrder=rotate(DOOR_RING,zhishiDoor);
+  const godPalaces=dunType==='阳遁'?clockwisePalaces:rotate([...ROTATION_RING].reverse(),timePalace);
+  const godOrder=dunType==='阳遁'?GOD_RING_YANG:GOD_RING_YIN;
   const skyStart=rawXun===5?earthPlate[xunPalace]:hiddenYi;
   const skyOrder=rotate(outerEarth,skyStart);
-  const map=<T,>(values:T[])=>Object.fromEntries(palaceOrder.map((p,i)=>[p,values[i]])) as Record<number,T>;
-  const starMap=map(starOrder),doorMap=map(doorOrder),godMap=map(godOrder),skyMap=map(skyOrder);
+  const map=<T,>(palaceOrder:number[],values:T[])=>Object.fromEntries(palaceOrder.map((p,i)=>[p,values[i]])) as Record<number,T>;
+  const starMap=map(clockwisePalaces,starOrder);
+  const doorMap=map(doorPalaces,doorOrder);
+  const godMap=map(godPalaces,godOrder);
+  const skyMap=map(clockwisePalaces,skyOrder);
   const chartPalaces:Palace[]=Object.keys(PALACE_INFO).map(Number).sort().map(p=>({
     palace:p,...PALACE_INFO[p],earthStem:earthPlate[p],skyStem:skyMap[p],stemRelation:relation(skyMap[p],earthPlate[p]),
     star:p===5?'天禽':starMap[p],door:p===5?undefined:doorMap[p],god:p===5?undefined:godMap[p],isCenter:p===5,hostsCenter:p===2,
@@ -126,13 +153,13 @@ export function buildQimenChart(params:{date:Date;questionType:string;question:s
   const now=solar.getJulianDay(), prev=prevJie.getSolar().getJulianDay(), next=nextJie.getSolar().getJulianDay();
   if(Math.abs(now-prev)<=1||Math.abs(next-now)<=1) warnings.push('当前时间接近节气交界，跨越边界可能改变局式。');
   return {
-    input:{questionType,question,city,time:formatSolar(solar),timezone:'Asia/Shanghai',focus,context},
+    input:{questionType,question,city,time:formatSolar(solar),timezone:'Asia/Shanghai',focus,context,experiencePalace},
     calendar:{solar:formatSolar(solar),lunar:`${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`,year:lunar.getYearInGanZhiExact(),month:lunar.getMonthInGanZhiExact(),day:dayGanzhi,time:lunar.getTimeInGanZhi(),activeJie,nextJie:nextJie.getName(),nextJieAt:formatSolar(nextJie.getSolar())},
     dunType,yuan,juNumber,xunshou:timeXun,hiddenYi,timeStemVisible:timeVisible,
     kongwang:timeKong,kongwangPalaces:[...new Set(timeKong.map(b=>BRANCH_TO_PALACE[b]))].sort(),
     dayKongwang:dayKong,dayKongwangPalaces:[...new Set(dayKong.map(b=>BRANCH_TO_PALACE[b]))].sort(),
     yima:{branch:yimaBranch,palace:BRANCH_TO_PALACE[yimaBranch]},
-    zhifu:{star:starMap[timePalace],palace:timePalace},zhishi:{door:doorMap[timePalace],palace:timePalace},
+    zhifu:{star:starMap[timePalace],palace:timePalace},zhishi:{door:zhishiDoor,palace:zhishiPalace},
     dayStem:{stem:dayGan,palace:host(stemPalace(earthPlate,dayGan))},
     timeStem:{stem:timeVisible,palace:timePalace},
     stemIndex:Object.fromEntries(Object.entries(earthPlate).map(([palace,stem])=>[stem,host(Number(palace))])),
@@ -143,3 +170,30 @@ export function buildQimenChart(params:{date:Date;questionType:string;question:s
 }
 
 export function palaceByNumber(chart:QimenChart,palace:number){ return chart.palaces.find(p=>p.palace===palace)!; }
+
+function wallClockMinutes(value:string){
+  const match=value.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  if(!match)return Number.NaN;
+  return Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]),Number(match[4]),Number(match[5]))/60000;
+}
+
+export function sameQimenPeriod(left:QimenChart,right:QimenChart){
+  const difference=Math.abs(wallClockMinutes(left.input.time)-wallClockMinutes(right.input.time));
+  return difference<2*60
+    && left.calendar.day===right.calendar.day
+    && left.calendar.time===right.calendar.time
+    && left.dunType===right.dunType
+    && left.juNumber===right.juNumber
+    && left.xunshou===right.xunshou;
+}
+
+export async function requestSkillQimenChart(input:SkillChartRequest):Promise<QimenChart>{
+  const response=await fetch('/api/qimen',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(input),
+  });
+  const payload=await response.json().catch(()=>({})) as {chart?:QimenChart;error?:string};
+  if(!response.ok||!payload.chart)throw new Error(payload.error||'Skill 排盘暂时不可用');
+  return payload.chart;
+}

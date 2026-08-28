@@ -12,7 +12,7 @@
   --line: rgba(215, 180, 91, 0.2);
   --sans:
     -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
-  --serif: "Songti SC", "Noto Serif SC", serif;
+  --serif: "Noto Serif SC Variable", "Noto Serif SC", "Songti SC", serif;
   --kai: "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", serif;
 }
 * {
@@ -2626,6 +2626,103 @@ button {
   }
 }
 
+/* Complete the verdict before asking readers to inspect the technical chart. */
+.result-screen .conclusion-brief {
+  width: min(1160px, calc(100% - 40px));
+  margin: 0 auto 22px;
+  padding: 30px 34px;
+  border: 1px solid rgba(122, 102, 69, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 254, 250, 0.88);
+  box-shadow: 0 16px 42px rgba(43, 50, 61, 0.05);
+}
+.result-screen .conclusion-brief-heading span,
+.result-screen .conclusion-brief article > small {
+  color: #9a7542;
+  font: 600 10px/1.4 var(--sans);
+  letter-spacing: 0.15em;
+}
+.result-screen .conclusion-brief-heading h2 {
+  margin: 8px 0 24px;
+  color: #292925;
+  font: 500 clamp(22px, 2.4vw, 30px)/1.35 var(--serif);
+}
+.result-screen .conclusion-brief-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 34px;
+}
+.result-screen .conclusion-brief article {
+  min-width: 0;
+}
+.result-screen .conclusion-explanation > p {
+  margin: 10px 0 18px;
+  color: #3f3e39;
+  font: 500 18px/1.75 var(--serif);
+}
+.result-screen .conclusion-explanation details {
+  padding-top: 14px;
+  border-top: 1px solid rgba(122, 102, 69, 0.13);
+}
+.result-screen .conclusion-explanation summary {
+  color: #6f675b;
+  cursor: pointer;
+  font: 600 11px/1.5 var(--sans);
+  letter-spacing: 0.05em;
+}
+.result-screen .conclusion-explanation details p {
+  margin: 10px 0 0;
+  color: #706e67;
+  font: 400 13px/1.75 var(--sans);
+}
+.result-screen .conclusion-actions ol {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.result-screen .conclusion-actions li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px 14px;
+  color: #555149;
+  border: 1px solid rgba(122, 102, 69, 0.12);
+  border-radius: 12px;
+  background: rgba(247, 243, 235, 0.64);
+  font: 400 12px/1.65 var(--sans);
+}
+.result-screen .conclusion-actions li i {
+  color: #9a7542;
+  font: 600 10px/1.6 var(--sans);
+  letter-spacing: 0.08em;
+}
+.result-screen .followup-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  color: #8a493f;
+  border: 1px solid rgba(151, 78, 65, 0.2);
+  border-radius: 10px;
+  background: rgba(250, 238, 234, 0.72);
+  font: 500 11px/1.55 var(--sans);
+}
+
+@media (max-width: 820px) {
+  .result-screen .conclusion-brief {
+    width: min(100% - 24px, 1160px);
+    padding: 24px 20px;
+  }
+  .result-screen .conclusion-brief-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .result-screen .conclusion-explanation > p {
+    font-size: 17px;
+  }
+}
+
 /* Keep short verdicts together instead of leaving a single final character. */
 @media (min-width: 821px) {
   .result-screen .result-mast h1,
@@ -3138,6 +3235,9 @@ button {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  .oracle-topbar::after {
+    animation: none !important;
   }
 }
 .lobby-intro h1 {
@@ -6036,18 +6136,58 @@ body {
   display: none;
 }
 .oracle-topbar {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   width: min(1120px, calc(100% - 40px));
   height: 58px;
   margin: 0 auto;
   padding: 0 16px 0 13px;
-  border: 1px solid rgba(25, 25, 25, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 19px;
   color: #171717;
-  background: rgba(255, 255, 255, 0.7);
+  background:
+    linear-gradient(112deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.1) 45%, rgba(232, 239, 255, 0.2)),
+    rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 18px 50px rgba(33, 44, 66, 0.08),
-    inset 0 1px rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(24px) saturate(1.25);
+    0 18px 50px rgba(33, 44, 66, 0.1),
+    0 2px 8px rgba(79, 91, 117, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -1px 0 rgba(149, 164, 198, 0.16),
+    inset 12px 0 30px rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(30px) saturate(1.7) contrast(1.04);
+  backdrop-filter: blur(30px) saturate(1.7) contrast(1.04);
+}
+.oracle-topbar::before,
+.oracle-topbar::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.oracle-topbar::before {
+  z-index: -1;
+  inset: 1px 18px auto;
+  height: 42%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.72), rgba(255,255,255,0.12));
+  filter: blur(8px);
+  opacity: 0.75;
+}
+.oracle-topbar::after {
+  z-index: -1;
+  top: -80%;
+  left: -18%;
+  width: 46%;
+  height: 250%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.46), transparent);
+  filter: blur(18px);
+  opacity: 0.42;
+  animation: oracle-liquid-glass-sheen 9s ease-in-out infinite;
+}
+.oracle-topbar > * {
+  position: relative;
+  z-index: 1;
 }
 .oracle-topbar .brand > i {
   width: 32px;
@@ -6055,8 +6195,13 @@ body {
   border: 0;
   border-radius: 9px;
   color: #fff;
-  background: #171717;
-  box-shadow: 0 6px 16px rgba(20, 20, 20, 0.18);
+  background:
+    linear-gradient(145deg, rgba(72, 72, 76, 0.94), rgba(9, 9, 11, 0.96) 58%),
+    #171717;
+  box-shadow:
+    0 7px 18px rgba(20, 20, 20, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.55);
   font-size: 13px;
 }
 .oracle-topbar .brand b {
@@ -6091,7 +6236,34 @@ body {
 .oracle-topbar .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+.oracle-language-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: #4d4d49;
+  background: transparent;
+  cursor: pointer;
+  font: 11px var(--sans);
+  letter-spacing: 0.02em;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.oracle-language-toggle span {
+  color: #292925;
+  font-size: 12px;
+  letter-spacing: -0.12em;
+}
+.oracle-language-toggle:hover,
+.oracle-language-toggle[aria-pressed="true"] {
+  border-color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.24);
+}
+.oracle-language-toggle:hover {
+  transform: translateY(-1px);
 }
 .oracle-topbar .header-actions > span {
   display: flex;
@@ -6109,9 +6281,33 @@ body {
 }
 .oracle-topbar .ghost-button {
   padding: 9px 16px;
-  border: 0;
-  color: #fff;
-  background: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  color: #272724;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.48), rgba(244, 247, 255, 0.2)),
+    rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 8px 22px rgba(39, 48, 71, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(130, 145, 180, 0.14);
+  -webkit-backdrop-filter: blur(18px) saturate(1.45);
+  backdrop-filter: blur(18px) saturate(1.45);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+.oracle-topbar .ghost-button:hover {
+  transform: translateY(-1px);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.66), rgba(239, 244, 255, 0.3)),
+    rgba(255, 255, 255, 0.24);
+  box-shadow:
+    0 11px 26px rgba(39, 48, 71, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(130, 145, 180, 0.16);
+}
+@keyframes oracle-liquid-glass-sheen {
+  0%, 16% { transform: translateX(-12%) rotate(18deg); opacity: 0.24; }
+  50% { transform: translateX(210%) rotate(18deg); opacity: 0.48; }
+  84%, 100% { transform: translateX(210%) rotate(18deg); opacity: 0.18; }
 }
 .landing-oracle-hero {
   position: relative;
